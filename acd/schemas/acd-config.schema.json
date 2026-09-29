@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AcdConfig",
+  "type": "object",
+  "properties": {
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "harness": {
+          "type": "string"
+        },
+        "hitl": {
+          "type": "string",
+          "enum": [
+            "all",
+            "none",
+            "custom"
+          ]
+        }
+      },
+      "required": [
+        "harness"
+      ],
+      "additionalProperties": false
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "agents": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "harnesses": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "classifiers": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "repo": {
+      "type": "object",
+      "properties": {
+        "testCommand": {
+          "type": "string"
+        },
+        "lintCommand": {
+          "type": "string"
+        },
+        "typecheckCommand": {
+          "type": "string"
+        },
+        "secretScanCommand": {
+          "type": "string"
+        },
+        "blockImplementerMerge": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "defaults",
+    "harnesses"
+  ],
+  "additionalProperties": false
+}

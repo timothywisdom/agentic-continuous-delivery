@@ -1,0 +1,11 @@
+---
+description: ACD kit — deterministic orchestrator is the CLI; do not route stages with an LLM.
+alwaysApply: true
+---
+
+# ACD
+
+- Use `npx acd <stage>` as the control plane (intake, specify, implement, review, pr, fix, approve, reject, status, config).
+- Do not mark specs approved; HitL is configuration. Never invert artifact authority.
+- While the pipeline is red, only `acd fix`.
+- Canonical skills: `.acd/skills/`. Agent rules: `.acd/agents/`.

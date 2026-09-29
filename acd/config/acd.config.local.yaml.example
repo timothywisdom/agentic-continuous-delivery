@@ -1,0 +1,36 @@
+# =============================================================================
+# acd.config.local.yaml.example → copy to .acd/acd.config.local.yaml (gitignored)
+# =============================================================================
+#
+# Purpose: machine-specific OVERRIDES only (harness choice, non-secret URLs).
+#
+# Full field / driver / tier catalog lives in the kit:
+#   node_modules/@acd/kit/acd/config/acd.config.default.yaml
+# (also copied to .acd/config/ by `acd init`).
+#
+# Secrets: copy .acd/.env.local.example → .acd/.env.local and fill in keys there.
+#   CURSOR_API_KEY / ANTHROPIC_API_KEY / CLASSIFIER_API_KEY
+# Non-secret URLs belong in YAML under classifiers.*.baseUrl (or harnesses.*).
+# Optional: CLASSIFIER_BASE_URL in .env.local overrides YAML baseUrl.
+# =============================================================================
+
+# --- Example: Cursor for generative agents; classify still uses classifiers.jev ---
+defaults:
+  harness: cursor
+
+# Point jev at your real classifier endpoint (partial merge keeps kit driver).
+classifiers:
+  jev:
+    baseUrl: https://your-classifier.example.com
+
+# --- Alternative: classify with an LLM profile (grok / composer / haiku / …) ---
+# harnesses:
+#   cursor:
+#     driver: cursor-sdk
+#     models:
+#       classify: grok   # or composer, haiku, sonnet, opus
+#       low: composer-2
+#       med: composer-2
+#       high: grok-4.6
+
+# Verify: npx acd config

@@ -1,0 +1,23 @@
+{
+  "name": "@acd/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Optional local Next.js UI that drives the ACD CLI",
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 4173",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1 -p 4173"
+  },
+  "dependencies": {
+    "next": "^15.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "typescript": "^5.8.2"
+  }
+}

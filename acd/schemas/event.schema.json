@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkEvent",
+  "type": "object",
+  "properties": {
+    "at": {
+      "type": "string"
+    },
+    "workId": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "intake",
+        "specify",
+        "implement",
+        "review",
+        "pr",
+        "ci_review",
+        "fix",
+        "deploy",
+        "canary",
+        "rollback",
+        "hypothesis"
+      ]
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "at",
+    "workId",
+    "type"
+  ],
+  "additionalProperties": false
+}

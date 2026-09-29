@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CiReviewOutput",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "block"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issue": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "block"
+            ]
+          }
+        },
+        "required": [
+          "agent",
+          "file",
+          "line",
+          "issue",
+          "why",
+          "decision"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "testsOk": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "decision",
+    "findings",
+    "testsOk"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SpecifyOutput",
+  "type": "object",
+  "properties": {
+    "workId": {
+      "type": "string"
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "string"
+        },
+        "behavior": {
+          "type": "string"
+        },
+        "feature": {
+          "type": "string"
+        },
+        "acceptance": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent",
+        "behavior",
+        "feature",
+        "acceptance"
+      ],
+      "additionalProperties": false
+    },
+    "scenarioCount": {
+      "type": "number"
+    },
+    "tooLarge": {
+      "type": "boolean"
+    },
+    "validationFindings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "workId",
+    "artifacts",
+    "scenarioCount",
+    "tooLarge",
+    "validationFindings"
+  ],
+  "additionalProperties": false
+}

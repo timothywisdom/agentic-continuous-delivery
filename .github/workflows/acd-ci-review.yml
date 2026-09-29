@@ -1,0 +1,24 @@
+name: acd-ci-review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master]
+
+jobs:
+  acd:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm test
+      - name: ACD CI review
+        env:
+          ACD_HARNESS: stub
+        run: npx acd ci-review --approve-policy none

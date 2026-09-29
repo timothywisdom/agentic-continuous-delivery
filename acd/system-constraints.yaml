@@ -1,0 +1,18 @@
+system_constraints:
+  security:
+    - No secrets in source code
+    - All user input must be sanitized
+    - Authentication required for all API endpoints unless an artifact explicitly allows otherwise
+  performance:
+    - API p99 latency < 500ms unless the feature description sets a tighter budget
+    - No N+1 query patterns
+  architecture:
+    - No circular dependencies between modules
+    - All new dependencies require team approval
+  operations:
+    - Log structured data, not free-form strings
+    - Agent-generated changes must include tests for the scenario they implement
+  acd:
+    - Intent description wins over feature description; feature description wins over implementation
+    - Agents must not redefine artifact authority
+    - While the pipeline is red, only restore-green work is legal

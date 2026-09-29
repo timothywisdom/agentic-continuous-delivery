@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ImplementOutput",
+  "type": "object",
+  "properties": {
+    "workId": {
+      "type": "string"
+    },
+    "scenario": {
+      "type": "number"
+    },
+    "scenarioTitle": {
+      "type": "string"
+    },
+    "filesTouched": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "testsAdded": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sessionSummaryPath": {
+      "type": "string"
+    },
+    "commitCreated": {
+      "type": "boolean"
+    },
+    "pipelineStatus": {
+      "type": "string",
+      "enum": [
+        "green",
+        "red"
+      ]
+    }
+  },
+  "required": [
+    "workId",
+    "scenario",
+    "scenarioTitle",
+    "filesTouched",
+    "testsAdded",
+    "sessionSummaryPath",
+    "commitCreated",
+    "pipelineStatus"
+  ],
+  "additionalProperties": false
+}

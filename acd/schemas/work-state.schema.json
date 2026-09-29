@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkState",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string"
+    },
+    "updatedAt": {
+      "type": "string"
+    },
+    "currentStage": {
+      "type": "string",
+      "enum": [
+        "intake",
+        "specify",
+        "implement",
+        "review",
+        "pr",
+        "ci_review",
+        "fix",
+        "deploy",
+        "canary",
+        "rollback",
+        "hypothesis"
+      ]
+    },
+    "completedStages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "intake",
+          "specify",
+          "implement",
+          "review",
+          "pr",
+          "ci_review",
+          "fix",
+          "deploy",
+          "canary",
+          "rollback",
+          "hypothesis"
+        ]
+      }
+    },
+    "pipelineStatus": {
+      "type": "string",
+      "enum": [
+        "green",
+        "red"
+      ]
+    },
+    "awaitingApproval": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "intake",
+            "specify",
+            "implement",
+            "review",
+            "pr",
+            "ci_review",
+            "fix",
+            "deploy",
+            "canary",
+            "rollback",
+            "hypothesis"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "currentScenario": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lastError": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lastStageOutput": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approvedStages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "intake",
+          "specify",
+          "implement",
+          "review",
+          "pr",
+          "ci_review",
+          "fix",
+          "deploy",
+          "canary",
+          "rollback",
+          "hypothesis"
+        ]
+      }
+    },
+    "rejectedStages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "intake",
+              "specify",
+              "implement",
+              "review",
+              "pr",
+              "ci_review",
+              "fix",
+              "deploy",
+              "canary",
+              "rollback",
+              "hypothesis"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "reason",
+          "at"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "sourceText": {
+      "type": "string"
+    },
+    "implementerIdentity": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "createdAt",
+    "updatedAt",
+    "currentStage",
+    "completedStages",
+    "pipelineStatus",
+    "awaitingApproval",
+    "currentScenario",
+    "lastError",
+    "lastStageOutput",
+    "approvedStages",
+    "rejectedStages",
+    "sourceText",
+    "implementerIdentity"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,29 @@
+name: acd-ci-review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  acd:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        run: npm ci
+      - name: Tests
+        run: npm test --if-present
+      - name: ACD CI review
+        env:
+          ACD_HARNESS: ${{ vars.ACD_HARNESS || 'stub' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CLASSIFIER_API_KEY: ${{ secrets.CLASSIFIER_API_KEY }}
+          CLASSIFIER_BASE_URL: ${{ secrets.CLASSIFIER_BASE_URL }}
+        run: npx acd ci-review --approve-policy none

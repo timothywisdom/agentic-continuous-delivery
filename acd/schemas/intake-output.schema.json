@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IntakeOutput",
+  "type": "object",
+  "properties": {
+    "workId": {
+      "type": "string"
+    },
+    "workDir": {
+      "type": "string"
+    },
+    "intentPath": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workId",
+    "workDir",
+    "intentPath"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,54 @@
+# =============================================================================
+# acd.config.yaml — committed project defaults for THIS repo
+# =============================================================================
+#
+# Merged on top of the kit catalog (live source of truth):
+#   node_modules/@acd/kit/acd/config/acd.config.default.yaml
+# `acd init` also copies that catalog into ./.acd/config/ for reading in-repo.
+# Prefer a thin acd.config.yaml — do not fork the full harness/classifier maps.
+#
+# Machine-specific overrides: .acd/acd.config.local.yaml (see .example).
+#
+# Only list settings you want this project to pin. Unlisted keys inherit from
+# the kit default file.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# defaults — fallbacks when a stage/agent does not override
+# -----------------------------------------------------------------------------
+defaults:
+  # Default LLM harness name (must exist under harnesses in the merged config).
+  # Use stub offline; override to cursor/anthropic in .acd/acd.config.local.yaml.
+  harness: stub
+
+  # all | none | custom — see kit default file for HitL behavior.
+  hitl: custom
+
+# -----------------------------------------------------------------------------
+# stages — only HitL pins here; other stage fields inherit kit defaults
+# -----------------------------------------------------------------------------
+stages:
+  # After specify succeeds, wait for `acd approve specify`.
+  specify:
+    require_human_approval: true
+
+  # After review succeeds, wait for `acd approve review`.
+  review:
+    require_human_approval: true
+
+  # After pr succeeds, wait for `acd approve pr` (or your merge policy).
+  pr:
+    require_human_approval: true
+
+# -----------------------------------------------------------------------------
+# repo — how ACD invokes this package’s scripts
+# -----------------------------------------------------------------------------
+repo:
+  # Used by implement / fix / ci-review / `acd test`.
+  testCommand: npx vitest run
+
+  # Optional mechanical check during `acd review`.
+  lintCommand: npx tsc -p tsconfig.json --noEmit
+
+  # Document ACD constraint 7 on generated PR bodies.
+  blockImplementerMerge: true

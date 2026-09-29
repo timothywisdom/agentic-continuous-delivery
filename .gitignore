@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.acd/work/
+.acd/acd.config.local.yaml
+.acd/.env
+.acd/.env.local
+acd.config.local.yaml
+*.log
+.DS_Store
+coverage/
+.env
+.env.local
+env.local
+web/.next
+web/node_modules

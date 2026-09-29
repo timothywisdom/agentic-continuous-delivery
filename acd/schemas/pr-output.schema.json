@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PrOutput",
+  "type": "object",
+  "properties": {
+    "workId": {
+      "type": "string"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "branch": {
+      "type": "string"
+    },
+    "created": {
+      "type": "boolean"
+    },
+    "body": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "workId",
+    "url",
+    "branch",
+    "created",
+    "body"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,250 @@
+# =============================================================================
+# ACD configuration (kit default → copied to .acd/acd.config.yaml by `acd init`)
+# =============================================================================
+#
+# Load order (later wins):
+#   1) kit acd/config/acd.config.default.yaml   (this file, inside @acd/kit)
+#   2) .acd/acd.config.yaml                     (committed project defaults)
+#   3) .acd/acd.config.local.yaml               (gitignored overrides)
+#
+# Secrets live in .acd/.env.local — see .acd/.env.local.example.
+# Never put keys in YAML. Non-secret URLs use classifiers.<name>.baseUrl
+# (or harnesses.<name>.baseUrl). CLASSIFIER_BASE_URL env can override baseUrl.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# defaults — project-wide fallbacks when a stage/agent does not override
+# -----------------------------------------------------------------------------
+defaults:
+  # Which harnesses.* entry to use for LLM work unless overridden.
+  # Special value "none" = no LLM (script-only stages). Must match a key
+  # under harnesses, or be "none".
+  harness: stub
+
+  # Human-in-the-loop preset:
+  #   all    — every stage.require_human_approval becomes true
+  #   none   — every stage.require_human_approval becomes false (observe-only)
+  #   custom — use the per-stage flags below as written
+  hitl: custom
+
+  # When validator/classifier reject, repair via the collaborator this many times
+  # before pausing for human guidance (`acd amend <stage> --note "..."`).
+  max_repair_loops: 3
+
+# -----------------------------------------------------------------------------
+# stages — pipeline steps (a la carte: `acd <stage>`)
+# -----------------------------------------------------------------------------
+# Each stage may set:
+#   harness:                 override defaults.harness (or "none")
+#   tier:                    classify | low | med | high — fallback for agents
+#   require_human_approval:  if true, pause for `acd approve <stage>` after success
+#
+# Stage names in v1: intake, specify, implement, review, pr, ci_review, fix
+# Named stubs (not implemented): deploy, canary, rollback, hypothesis
+# -----------------------------------------------------------------------------
+stages:
+  # Create .acd/work/<id>/ from plain English. No LLM.
+  intake:
+    harness: none
+    require_human_approval: false
+
+  # Draft/validate intent, Gherkin, feature constraints, acceptance criteria.
+  specify:
+    tier: med
+    require_human_approval: true
+
+  # One BDD scenario → failing acceptance test → production code (TDD).
+  implement:
+    tier: high
+    require_human_approval: false
+
+  # Mechanical hooks + parallel expert review agents.
+  review:
+    tier: med
+    require_human_approval: true
+
+  # Open a PR via gh; body built from artifacts. No LLM by default.
+  pr:
+    harness: none
+    require_human_approval: true
+
+  # CI entry: tests + same review fan-out (typically no HitL wait).
+  ci_review:
+    require_human_approval: false
+
+  # Only legal generative work while pipeline_status is red (ACD constraint 8).
+  fix:
+    tier: high
+    require_human_approval: false
+
+# -----------------------------------------------------------------------------
+# agents — per-role model tier / harness (generative + classifier roles)
+# -----------------------------------------------------------------------------
+# Each role may set:
+#   tier:    classify | low | med | high
+#   harness: optional harnesses.* name (overrides stage/defaults)
+#
+# Harness resolution: CLI/env → agent.harness → stage.harness → defaults.harness
+# Tier resolution:    CLI/env → agent.tier → stage.tier → built-in role default
+#
+# When tier is classify, harnesses.<name>.models.classify names a classifiers.*
+# profile (usually "jev"; stub harness uses "stub-classify").
+# -----------------------------------------------------------------------------
+agents:
+  # Pass/fail “does this output meet criteria?” — use classify tier.
+  criteria_gate:
+    tier: classify
+
+  # Draft/critique specification artifacts (intent, behavior, feature, acceptance).
+  spec_collaborator:
+    tier: med
+
+  # Consistency review of the four spec artifacts (findings only; no approval).
+  spec_validator:
+    tier: med
+
+  # Write tests then production code for exactly one scenario.
+  implementation:
+    tier: high
+
+  # Review: logic / edge cases / intent vs scenario.
+  semantic_review:
+    tier: high
+
+  # Review: injection, auth, secrets, audit.
+  security_review:
+    tier: med
+
+  # Review: budgets / latency / resource leaks.
+  performance_review:
+    tier: med
+
+  # Review: races, idempotency, shared state.
+  concurrency_review:
+    tier: med
+
+  # Expert: tests cover BDD steps without weakened assertions.
+  test_fidelity:
+    tier: med
+
+  # Expert: tests assert observables, not private internals.
+  implementation_coupling:
+    tier: med
+
+  # Expert: code respects feature.md musts / must-nots.
+  architectural_conformance:
+    tier: med
+
+  # Expert: change addresses intent.md, not a neighboring problem.
+  intent_alignment:
+    tier: high
+
+  # Expert: system-constraints.yaml rules static analysis may miss.
+  constraint_compliance:
+    tier: med
+
+# -----------------------------------------------------------------------------
+# harnesses — named runtimes (label → driver + generative model map)
+# -----------------------------------------------------------------------------
+# <name> is arbitrary (cursor, anthropic, stub, my-prod, …).
+#
+# driver — MUST be one of (selects TypeScript implementation for generative tiers):
+#   stub            offline placeholders
+#   cursor-sdk      Cursor API (@cursor/sdk); env CURSOR_API_KEY
+#   anthropic-api   Anthropic Messages API; env ANTHROPIC_API_KEY (or apiKeyEnv override)
+#   classifier-api  HTTP POST {baseUrl}/classify (used on classifiers.*, not here)
+#
+# models — every harness should map all four tiers:
+#   classify → key under classifiers (default "jev"; stub uses "stub-classify")
+#   low|med|high → vendor model ids for generative work
+#
+# apiKeyEnv / baseUrl on a harness apply to generative (low/med/high) calls only.
+# Classify credentials: set CLASSIFIER_API_KEY (etc.) in .env.local — not in YAML.
+# -----------------------------------------------------------------------------
+harnesses:
+  # Offline / CI without keys — placeholder JSON only.
+  stub:
+    driver: stub
+    models:
+      classify: stub-classify
+      low: stub-low
+      med: stub-med
+      high: stub-high
+
+  # Cursor Pro SDK — generative agents; classify → classifiers.jev by default.
+  cursor:
+    driver: cursor-sdk
+    models:
+      classify: jev
+      low: composer-2
+      med: composer-2
+      high: grok-4.6
+
+  # Anthropic API — generative agents; classify → classifiers.jev by default.
+  anthropic:
+    driver: anthropic-api
+    models:
+      classify: jev
+      low: claude-haiku-4-5-20251001
+      med: claude-sonnet-5-5
+      high: claude-opus-5-5
+
+# -----------------------------------------------------------------------------
+# classifiers — named classify backends (referenced by harnesses.*.models.classify)
+# -----------------------------------------------------------------------------
+# When an agent uses tier: classify, ACD looks up:
+#   harnesses.<active>.models.classify  →  classifiers.<that-name>
+#
+# driver — any DriverKind (classifier-api, stub, cursor-sdk, anthropic-api).
+# model  — vendor model id for LLM classifiers (defaults to the profile name).
+# baseUrl — non-secret endpoint for classifier-api (CLASSIFIER_BASE_URL overrides).
+# Secrets: CLASSIFIER_API_KEY / CURSOR_API_KEY / ANTHROPIC_API_KEY in .env.local.
+#
+# Point a harness at an LLM classifier with e.g.:
+#   harnesses.cursor.models.classify: grok
+# -----------------------------------------------------------------------------
+classifiers:
+  # Dedicated HTTP Jev-class gate (default for cursor / anthropic harness maps).
+  jev:
+    driver: classifier-api
+    baseUrl: https://classifier.example.com
+
+  # Offline classify profile used by harnesses.stub.models.classify.
+  stub-classify:
+    driver: stub
+
+  # --- LLM classifiers (reuse generative drivers + a specific model) -----------
+  grok:
+    driver: cursor-sdk
+    model: grok-4.6
+
+  composer:
+    driver: cursor-sdk
+    model: composer-2
+
+  haiku:
+    driver: anthropic-api
+    model: claude-haiku-4-5-20251001
+
+  sonnet:
+    driver: anthropic-api
+    model: claude-sonnet-5-5
+
+  opus:
+    driver: anthropic-api
+    model: claude-opus-5-5
+
+# -----------------------------------------------------------------------------
+# repo — host project commands and ACD policy knobs
+# -----------------------------------------------------------------------------
+repo:
+  # Shell command for `acd test` / implement / ci-review gate (cwd = repo root).
+  testCommand: npm test
+
+  # Optional mechanical pre-commit / review hooks (omit to skip).
+  lintCommand: npm run lint
+  # typecheckCommand: npm run typecheck
+  # secretScanCommand: npm run secret-scan
+
+  # When true, PR body warns not to merge as the implementer identity (ACD #7).
+  blockImplementerMerge: true

@@ -1,0 +1,48 @@
+{
+  "name": "@acd/kit",
+  "version": "0.1.0",
+  "description": "Agentic Continuous Delivery kit: deterministic orchestrator, typed stages, pluggable harnesses",
+  "type": "module",
+  "bin": {
+    "acd": "./bin/acd.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "src",
+    "acd",
+    "docs",
+    "web",
+    "acd.config.yaml"
+  ],
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "acd": "node ./bin/acd.js",
+    "ui": "node ./bin/acd.js ui",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "write-schemas": "tsx scripts/write-schemas.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.0.32",
+    "tsx": "^4.19.3",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}
