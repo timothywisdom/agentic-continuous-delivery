@@ -44,5 +44,13 @@
     "@types/node": "^22.13.10",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timothywisdom/agentic-continuous-delivery.git"
+  },
+  "homepage": "https://github.com/timothywisdom/agentic-continuous-delivery#readme",
+  "bugs": {
+    "url": "https://github.com/timothywisdom/agentic-continuous-delivery/issues"
   }
 }
