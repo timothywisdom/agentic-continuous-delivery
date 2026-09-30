@@ -12,14 +12,14 @@ npx acd --help
 npx acd intake --from "Add rate limiting to /api/search"
 ```
 
-Use **`npx acd <command>`** after `npm install` in a directory that depends on this package. Bare `npx acd` in an empty folder fails — npm has nothing local to run and cannot invent the CLI.
+Use `npx acd <command>` after `npm install` in a directory that depends on this package. Bare `npx acd` in an empty folder fails — npm has nothing local to run and cannot invent the CLI.
 
 ## Use in another project
 
-From the **new** project (example: `~/source/dj-simulator`):
+From the **new** project (example: `~/my-new-app`):
 
 ```bash
-cd ~/source/dj-simulator
+cd ~/my-new-app
 npm init -y
 npm install ../acd          # path to this kit (or a published package later)
 npx acd init .
@@ -30,8 +30,8 @@ Or init from the kit repo without installing first:
 
 ```bash
 cd ~/source/acd
-npx acd init ../dj-simulator
-cd ../dj-simulator
+npx acd init ../my-new-app
+cd ../my-new-app
 npm init -y
 npm install ../acd
 npx acd specify
@@ -81,11 +81,11 @@ The CLI remains the source of truth. A Next.js app under `web/` can drive it:
 
 ```bash
 # From the project you want to work on:
-cd ~/source/dj-simulator
+cd ~/my-new-app
 npx acd ui
 
 # Or from anywhere, including the kit repo:
-npx acd ui --repo-root ~/source/dj-simulator
+npx acd ui --repo-root ~/my-new-app
 ```
 
-Opens http://127.0.0.1:4173 (never binds 0.0.0.0). You can also change the target folder in the UI. The UI mints a CSRF token on load, checks Host/Origin (loopback only), and runs `acd` as a child process.
+Opens [http://127.0.0.1:4173](http://127.0.0.1:4173) (never binds 0.0.0.0). You can also change the target folder in the UI. The UI mints a CSRF token on load, checks Host/Origin (loopback only), and runs `acd` as a child process.

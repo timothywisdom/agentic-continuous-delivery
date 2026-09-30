@@ -1,5 +1,5 @@
 {
-  "name": "@acd/kit",
+  "name": "acd-kit",
   "version": "0.1.0",
   "description": "Agentic Continuous Delivery kit: deterministic orchestrator, typed stages, pluggable harnesses",
   "type": "module",
