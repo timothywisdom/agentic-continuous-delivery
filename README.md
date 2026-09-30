@@ -1,91 +1,120 @@
-# ACD SDLC Kit
+# acd-kit
 
-Portable **Agentic Continuous Delivery** kit: a TypeScript CLI is the **deterministic orchestrator**. Stages have typed I/O. Agents run only for generative work. Binary “does this meet criteria?” checks use a **classifier** tier (Jev-class). Harness, models, and **per-stage human-in-the-loop** are configuration.
+**Agentic Continuous Delivery (ACD) for your repo, run with a single `npx` command.**
 
-Follows [MinimumCD Agentic CD](https://beyond.minimumcd.org/docs/agentic-cd/).
+`acd-kit` is a TypeScript CLI that moves a change from idea to delivery through a series of stages. The CLI is a **deterministic orchestrator**: every stage has typed inputs and outputs, and AI agents are only called for generative work. Yes/no checks ("does this meet the criteria?") go to a lightweight **classifier** tier instead. Which harness and models you use, and which stages pause for a **human in the loop**, are all configuration.
 
-## Quick start (this repo)
+Based on [MinimumCD Agentic CD](https://beyond.minimumcd.org/docs/agentic-cd/).
+
+## Quick start
+
+No install needed. Run it with `npx` from the root of the project you want to work on:
 
 ```bash
+cd ~/my-project
+npx acd-kit init .
+npx acd-kit intake --from "Add rate limiting to /api/search"
+```
+
+That's it. `init` scaffolds an `.acd/` folder in your repo, and `intake` starts a new work item from a plain-English description.
+
+The default harness is `stub`, which needs no API keys, so you can try the whole pipeline offline first.
+
+> **Use `acd-kit`, not `acd`.** The bare name `acd` on npm is a different package. Always run `npx acd-kit ...`.
+>
+> If `npx acd-kit` ever complains that it can't find a command to run, use the explicit form: `npx -p acd-kit acd <command>`.
+
+## Commands
+
+```bash
+npx acd-kit --help          # list every command
+npx acd-kit init .          # set up ACD in the current repo
+npx acd-kit intake --from "<description>"   # start a new work item
+npx acd-kit specify         # write the spec for the current work item
+npx acd-kit config          # show resolved harness, tier, model, and human-in-the-loop flags (no secrets)
+npx acd-kit ui              # optional local web UI
+```
+
+Run `npx acd-kit --help` for the full list of stages.
+
+## Using a real agent (Cursor harness)
+
+The default `stub` harness is for trying things out. To run real agents with the Cursor harness:
+
+1. Copy `.acd/.env.local.example` to `.acd/.env.local`.
+2. Set `CURSOR_API_KEY` in that file.
+
+The Cursor SDK (`@cursor/sdk`) ships as a dependency of `acd-kit`, so there is nothing else to install in your repo.
+
+## What `init` adds to your repo
+
+Everything ACD-specific lives under `.acd/`:
+
+| Path                                                      | Purpose                       | Commit it?      |
+| --------------------------------------------------------- | ----------------------------- | --------------- |
+| `.acd/acd.config.yaml`                                    | Project settings and pins     | Yes             |
+| `.acd/acd.config.local.yaml`                              | Local harness / URL overrides | No (gitignored) |
+| `.acd/.env.local`                                         | API keys                      | No (gitignored) |
+| `.acd/skills`, `agents`, `templates`, `schemas`, `config` | The kit's catalog, copied in  | Yes             |
+| `.acd/work/<id>/`                                         | Work items in progress        | No (gitignored) |
+
+Cursor and GitHub still use `.cursor/`, `AGENTS.md`, and `.github/`, because those tools require those exact paths.
+
+## Configuration
+
+Settings are layered, with later layers overriding earlier ones:
+
+1. `acd/config/acd.config.default.yaml`: kit defaults (inside the package)
+2. `.acd/acd.config.yaml`: your repo's overrides
+3. `.acd/acd.config.local.yaml`: your personal, gitignored overrides
+4. `.acd/.env.local`: API keys, loaded automatically (a repo-root `.env.local` still works as a fallback)
+
+Run `npx acd-kit config` any time to see what ended up in effect.
+
+## Optional local UI
+
+The CLI is always the source of truth. If you'd rather click than type, a local web UI can drive it:
+
+```bash
+cd ~/my-project
+npx acd-kit ui
+
+# or point it at a different project
+npx acd-kit ui --repo-root ~/my-project
+```
+
+It opens at <http://127.0.0.1:4173>. The server only binds to loopback (never `0.0.0.0`), issues a CSRF token on load, checks the Host and Origin headers, and runs `acd` as a child process.
+
+## Learn more
+
+- [À la carte adoption](docs/a-la-carte.md)
+- [Stage contracts](docs/stage-contracts.md)
+- [ACD constraints](docs/acd-constraints.md)
+
+## Contributing / developing the kit
+
+Only needed if you're working on `acd-kit` itself.
+
+```bash
+git clone https://github.com/timothywisdom/agentic-continuous-delivery
+cd agentic-continuous-delivery
 npm install
 npx acd --help
-npx acd intake --from "Add rate limiting to /api/search"
 ```
 
-Use `npx acd <command>` after `npm install` in a directory that depends on this package. Bare `npx acd` in an empty folder fails — npm has nothing local to run and cannot invent the CLI.
-
-## Use in another project
-
-From the **new** project (example: `~/my-new-app`):
+To try your local checkout in another project:
 
 ```bash
-cd ~/my-new-app
-npm init -y
-npm install ../acd          # path to this kit (or a published package later)
+cd ~/my-project
+npm install /path/to/agentic-continuous-delivery
 npx acd init .
-npx acd intake --from "..."
 ```
 
-Or init from the kit repo without installing first:
-
-```bash
-cd ~/source/acd
-npx acd init ../my-new-app
-cd ../my-new-app
-npm init -y
-npm install ../acd
-npx acd specify
-```
-
-Do **not** use bare `npm link` unless your npm global prefix is user-writable. Otherwise npm tries `/usr/lib/node_modules` and fails with `EACCES`. To get a bare `acd` on PATH without sudo:
+If you want a bare `acd` command on your PATH via `npm link`, make sure your npm global prefix is user-writable first. Otherwise npm tries to write to `/usr/lib/node_modules` and fails with `EACCES`:
 
 ```bash
 mkdir -p ~/.local
 npm config set prefix ~/.local
-# ensure ~/.local/bin is on your PATH, then from the acd kit:
+# make sure ~/.local/bin is on your PATH, then from the kit checkout:
 npm link
 ```
-
-Default harness is `stub` (no API keys) so the pipeline is exercisable offline.
-The Cursor harness uses `@cursor/sdk`, which ships as a dependency of `@acd/kit`
-— set `CURSOR_API_KEY` in `.acd/.env.local` (no separate SDK install in consumer repos).
-
-## Layout
-
-**This kit** ships its catalog as `acd/` (skills, agents, default config, adapters).
-
-**Consumer repos** (`npx acd init .`) keep all ACD files under `.acd/`:
-
-- `.acd/acd.config.yaml` — committed project pins
-- `.acd/acd.config.local.yaml` — gitignored harness / URL overrides
-- `.acd/.env.local` — API keys (copy from `.acd/.env.local.example`)
-- `.acd/skills`, `.acd/agents`, `.acd/templates`, `.acd/schemas`, `.acd/config`
-- `.acd/work/<id>/` — work items (gitignored)
-
-Cursor and GitHub still use `.cursor/`, `AGENTS.md`, and `.github/` because those tools require those paths.
-
-See [docs/a-la-carte.md](docs/a-la-carte.md), [docs/stage-contracts.md](docs/stage-contracts.md), [docs/acd-constraints.md](docs/acd-constraints.md).
-
-## Config
-
-- `acd/config/acd.config.default.yaml` — kit defaults (inside the package)
-- `.acd/acd.config.yaml` — repo overrides
-- `.acd/acd.config.local.yaml` — gitignored harness / URL overrides
-- `.acd/.env.local` — API keys (loaded by `acd`; repo-root `.env.local` still works as a fallback)
-
-`acd config` prints resolved harness, tier, model, and HitL flags (no secrets).
-
-## Optional local UI
-
-The CLI remains the source of truth. A Next.js app under `web/` can drive it:
-
-```bash
-# From the project you want to work on:
-cd ~/my-new-app
-npx acd ui
-
-# Or from anywhere, including the kit repo:
-npx acd ui --repo-root ~/my-new-app
-```
-
-Opens [http://127.0.0.1:4173](http://127.0.0.1:4173) (never binds 0.0.0.0). You can also change the target folder in the UI. The UI mints a CSRF token on load, checks Host/Origin (loopback only), and runs `acd` as a child process.
