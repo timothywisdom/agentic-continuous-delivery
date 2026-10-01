@@ -10,7 +10,7 @@ import {
   tokenizeYaml,
 } from "../src/ui/artifacts.js";
 import { validateRepoRoot } from "../src/ui/repo.js";
-import { hasProductionUiBuild } from "../src/cli/ui.js";
+import { hasProductionUiBuild, resolveNextBin } from "../src/cli/ui.js";
 import {
   gateUiRequest,
   isAllowedHost,
@@ -152,5 +152,14 @@ describe("ui production build detection", () => {
     expect(hasProductionUiBuild(dir)).toBe(false);
     writeFileSync(join(dir, ".next", "BUILD_ID"), "abc123\n");
     expect(hasProductionUiBuild(dir)).toBe(true);
+  });
+});
+
+describe("resolveNextBin", () => {
+  it("finds next even when it is hoisted next to acd-kit, not inside it", () => {
+    const bin = resolveNextBin();
+    expect(bin.includes("next/dist/bin/next") || bin.endsWith("dist/bin/next")).toBe(
+      true,
+    );
   });
 });

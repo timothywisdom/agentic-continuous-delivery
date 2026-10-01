@@ -1,9 +1,9 @@
 # =============================================================================
-# ACD configuration (kit default → copied to .acd/acd.config.yaml by `acd init`)
+# ACD configuration (kit default — merged under consumer .acd/acd.config.yaml)
 # =============================================================================
 #
 # Load order (later wins):
-#   1) kit acd/config/acd.config.default.yaml   (this file, inside @acd/kit)
+#   1) kit acd/config/acd.config.default.yaml   (this file, inside acd-kit)
 #   2) .acd/acd.config.yaml                     (committed project defaults)
 #   3) .acd/acd.config.local.yaml               (gitignored overrides)
 #

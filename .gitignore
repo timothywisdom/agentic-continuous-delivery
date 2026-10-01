@@ -13,3 +13,4 @@ coverage/
 env.local
 web/.next
 web/node_modules
+*.tgz

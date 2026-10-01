@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import {
   applyCliOverrides,
   envOverrides,
@@ -29,8 +29,8 @@ function usage(): string {
   return `acd — Agentic Continuous Delivery runner (deterministic orchestrator)
 
 Usage:
-  acd init [dir]
-  acd config
+  acd-kit init [dir] [--cursor] [--github]
+  acd-kit config
   acd intake --from "<plain english>"
   acd specify [--artifact intent|behavior|feature|acceptance|all]
   acd implement [--scenario N]
@@ -59,6 +59,7 @@ Global flags:
   --approve-policy all|none
   --require-approval | --no-require-approval
   --repo-root <path>
+  init: --cursor (Cursor adapter at repo root)  --github (CI workflow)
 `;
 }
 
@@ -125,8 +126,16 @@ async function main(): Promise<void> {
 
   if (cmd === "init") {
     const target = resolve(args[0] ?? repoRoot);
-    initRepo(target);
-    process.stdout.write(`Initialized ACD kit in ${target}/.acd\n`);
+    initRepo(target, {
+      cursorIde: flags.cursor === true,
+      github: flags.github === true,
+    });
+    process.stdout.write(
+      `Initialized ACD in ${join(target, ".acd")}\n\n` +
+        `Next:\n` +
+        `  npx acd-kit ui\n` +
+        `  npx acd-kit intake --from "<what you want to build>"\n`,
+    );
     return;
   }
 

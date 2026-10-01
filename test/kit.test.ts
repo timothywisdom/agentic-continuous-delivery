@@ -326,17 +326,32 @@ describe("intake and specify (stub harness)", () => {
 });
 
 describe("initRepo", () => {
-  it("installs the kit under .acd, not ./acd", () => {
+  it("installs only a thin .acd home, not ./acd or a catalog copy", () => {
     const dir = mkdtempSync(join(tmpdir(), "acd-init-"));
-    initRepo(dir, { cursorIde: false });
+    initRepo(dir);
     expect(existsSync(join(dir, ".acd", "acd.config.yaml"))).toBe(true);
-    expect(existsSync(join(dir, ".acd", "skills"))).toBe(true);
-    expect(existsSync(join(dir, ".acd", "agents"))).toBe(true);
     expect(existsSync(join(dir, ".acd", ".gitignore"))).toBe(true);
+    expect(existsSync(join(dir, ".acd", "system-constraints.yaml"))).toBe(true);
+    expect(existsSync(join(dir, ".acd", "skills"))).toBe(false);
+    expect(existsSync(join(dir, ".acd", "agents"))).toBe(false);
     expect(existsSync(join(dir, "acd"))).toBe(false);
     expect(existsSync(join(dir, "acd.config.yaml"))).toBe(false);
-    const ignore = readFileSync(join(dir, ".gitignore"), "utf8");
-    expect(ignore).toContain(".acd/work/");
+    expect(existsSync(join(dir, "AGENTS.md"))).toBe(false);
+    expect(existsSync(join(dir, ".github"))).toBe(false);
+    expect(existsSync(join(dir, ".cursor"))).toBe(false);
+    const yaml = readFileSync(join(dir, ".acd", "acd.config.yaml"), "utf8");
+    expect(yaml).toContain("harness: stub");
+    expect(yaml).not.toContain("harnesses:");
+  });
+
+  it("copies Cursor and GitHub adapters only when requested", () => {
+    const dir = mkdtempSync(join(tmpdir(), "acd-init-ide-"));
+    initRepo(dir, { cursorIde: true, github: true });
+    expect(existsSync(join(dir, "AGENTS.md"))).toBe(true);
+    expect(existsSync(join(dir, ".cursor", "rules"))).toBe(true);
+    expect(existsSync(join(dir, ".github", "workflows", "acd-ci-review.yml"))).toBe(
+      true,
+    );
   });
 });
 

@@ -3,8 +3,7 @@
 # =============================================================================
 #
 # Merged on top of the kit catalog (live source of truth):
-#   node_modules/@acd/kit/acd/config/acd.config.default.yaml
-# `acd init` also copies that catalog into ./.acd/config/ for reading in-repo.
+#   acd/config/acd.config.default.yaml
 # Prefer a thin acd.config.yaml — do not fork the full harness/classifier maps.
 #
 # Machine-specific overrides: .acd/acd.config.local.yaml (see .example).

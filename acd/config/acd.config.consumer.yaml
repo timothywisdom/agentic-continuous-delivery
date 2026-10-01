@@ -1,0 +1,16 @@
+# Committed project pins for a consumer repo.
+# Unlisted keys inherit from the kit (acd-kit/acd/config/acd.config.default.yaml).
+# Machine overrides: copy acd.config.local.yaml.example → acd.config.local.yaml
+# Secrets: copy .env.local.example → .env.local (never commit keys).
+
+defaults:
+  harness: stub
+  hitl: custom
+
+stages:
+  specify:
+    require_human_approval: true
+  review:
+    require_human_approval: true
+  pr:
+    require_human_approval: true

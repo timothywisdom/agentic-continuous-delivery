@@ -1,4 +1,6 @@
 import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { CSRF_COOKIE } from "../../src/ui/security";
 import { validateRepoRoot } from "../../src/ui/repo";
 
@@ -44,5 +46,10 @@ export function setRepoRoot(input: string): string {
 }
 
 export function kitRoot(): string {
-  return process.env.ACD_KIT_ROOT?.trim() || process.cwd();
+  const fromEnv = process.env.ACD_KIT_ROOT?.trim();
+  if (fromEnv) return fromEnv;
+  const cwd = process.cwd();
+  const parent = join(cwd, "..");
+  if (existsSync(join(parent, "bin", "acd.js"))) return parent;
+  return cwd;
 }

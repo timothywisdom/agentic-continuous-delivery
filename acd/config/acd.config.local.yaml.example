@@ -4,9 +4,8 @@
 #
 # Purpose: machine-specific OVERRIDES only (harness choice, non-secret URLs).
 #
-# Full field / driver / tier catalog lives in the kit:
-#   node_modules/@acd/kit/acd/config/acd.config.default.yaml
-# (also copied to .acd/config/ by `acd init`).
+# Full field / driver / tier catalog lives in the kit package:
+#   node_modules/acd-kit/acd/config/acd.config.default.yaml
 #
 # Secrets: copy .acd/.env.local.example → .acd/.env.local and fill in keys there.
 #   CURSOR_API_KEY / ANTHROPIC_API_KEY / CLASSIFIER_API_KEY
@@ -33,4 +32,4 @@ classifiers:
 #       med: composer-2
 #       high: grok-4.6
 
-# Verify: npx acd config
+# Verify: npx acd-kit config

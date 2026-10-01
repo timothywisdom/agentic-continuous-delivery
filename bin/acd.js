@@ -32,7 +32,7 @@ if (existsSync(compiled)) {
       tsxLoader = require.resolve("tsx");
     } catch {
       process.stderr.write(
-        "acd: dist/ is missing and package 'tsx' is not installed in @acd/kit.\n" +
+        "acd: dist/ is missing and package 'tsx' is not installed in acd-kit.\n" +
           "From the kit repo run: npm install && npm run build\n" +
           "Then re-run your command in the consumer project.\n",
       );

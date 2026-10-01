@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,19 +34,19 @@ export async function startUi(opts: {
   const dir = webAppDir();
   if (!existsSync(join(dir, "package.json"))) {
     throw new Error(
-      `Web UI not found at ${dir}. Reinstall @acd/kit or run from the kit repo.`,
+      `Web UI not found at ${dir}. Reinstall acd-kit or run from the kit repo.`,
     );
   }
 
   const port = opts.port ?? defaultUiPort();
-  const nextBin = resolveNextBin(dir);
+  const nextBin = resolveNextBin(kitRoot);
   const production = hasProductionUiBuild(dir);
   const args = production
     ? ["start", "-H", "127.0.0.1", "-p", String(port)]
     : ["dev", "-H", "127.0.0.1", "-p", String(port)];
 
   process.stderr.write(
-    `acd: UI on http://127.0.0.1:${port} (bound to 127.0.0.1; drives CLI in ${opts.repoRoot}` +
+    `acd-kit: UI on http://127.0.0.1:${port} (bound to 127.0.0.1; drives CLI in ${opts.repoRoot}` +
       `${production ? "" : "; next dev"})\n`,
   );
 
@@ -59,6 +60,9 @@ export async function startUi(opts: {
         ACD_KIT_ROOT: kitRoot,
         ACD_UI_PORT: String(port),
         HOSTNAME: "127.0.0.1",
+        // Next auto-installs TypeScript for next.config.ts; prefer npm so a
+        // global yarn CLI cannot trip over acd-kit's package.json.
+        npm_config_user_agent: process.env.npm_config_user_agent ?? "npm",
       },
     });
     child.on("error", reject);
@@ -69,16 +73,15 @@ export async function startUi(opts: {
   });
 }
 
-function resolveNextBin(webDir: string): string {
-  const candidates = [
-    join(kitRoot, "node_modules", "next", "dist", "bin", "next"),
-    join(webDir, "node_modules", "next", "dist", "bin", "next"),
-  ];
-  const found = candidates.find((p) => existsSync(p));
-  if (!found) {
+/** Resolve `next` from acd-kit's package, including hoisted node_modules (npx cache). */
+export function resolveNextBin(fromKitRoot: string = kitRoot): string {
+  const require = createRequire(join(fromKitRoot, "package.json"));
+  try {
+    return require.resolve("next/dist/bin/next");
+  } catch {
     throw new Error(
-      "next is not installed. From the kit repo run: npm install",
+      "acd-kit could not find the 'next' package (it is a dependency of acd-kit). " +
+        "Upgrade with `npx acd-kit@latest ui` — do not npm-install acd-kit into your app.",
     );
   }
-  return found;
 }

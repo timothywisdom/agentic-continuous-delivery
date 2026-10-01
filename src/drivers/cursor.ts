@@ -2,11 +2,11 @@ import { createRequire } from "node:module";
 import { extractJson } from "../util/json.js";
 import type { HarnessDriver, HarnessRunRequest, HarnessRunResult } from "./types.js";
 
-/** Resolve @cursor/sdk from this package (@acd/kit), not the consumer's cwd. */
+/** Resolve @cursor/sdk from this package (acd-kit), not the consumer's cwd. */
 const requireFromKit = createRequire(import.meta.url);
 
 /**
- * Cursor driver: uses @cursor/sdk shipped with @acd/kit, else `cursor-agent` CLI.
+ * Cursor driver: uses @cursor/sdk shipped with acd-kit, else `cursor-agent` CLI.
  */
 export class CursorDriver implements HarnessDriver {
   kind = "cursor-sdk" as const;
