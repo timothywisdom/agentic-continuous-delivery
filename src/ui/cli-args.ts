@@ -1,4 +1,9 @@
-import { STAGE_NAMES, V1_STUBS, isStageName } from "../types/stages.js";
+import {
+  STAGE_NAMES,
+  V1_STUBS,
+  isStageName,
+  nextPipelineStage,
+} from "../types/stages.js";
 import { isSafeArtifactName } from "../work/artifact-name.js";
 
 export const UI_ALLOWED_COMMANDS = [
@@ -122,4 +127,23 @@ export function stageGraphEdges(): { from: string; to: string }[] {
   ];
 }
 
-export { STAGE_NAMES };
+export { STAGE_NAMES, isStageName, nextPipelineStage };
+
+/** Visual emphasis for a graph node. Completed beats leftover currentStage. */
+export function graphNodeEmphasis(
+  id: string,
+  state: {
+    currentStage: string;
+    completedStages: string[];
+    awaitingApproval: string | null;
+    awaitingGuidance: string | null;
+  } | null,
+): "done" | "current" | "wait" | null {
+  if (!state) return null;
+  if (state.awaitingApproval === id || state.awaitingGuidance === id) {
+    return "wait";
+  }
+  if (state.completedStages.includes(id)) return "done";
+  if (state.currentStage === id) return "current";
+  return null;
+}

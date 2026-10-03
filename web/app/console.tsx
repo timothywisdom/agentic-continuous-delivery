@@ -1,8 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CSRF_HEADER } from "../../src/ui/security";
-import { stageGraphEdges, stageGraphNodes } from "../../src/ui/cli-args";
+import { CSRF_HEADER } from "../../dist/ui/security.js";
+import {
+  graphNodeEmphasis,
+  isStageName,
+  nextPipelineStage,
+  stageGraphEdges,
+  stageGraphNodes,
+} from "../../dist/ui/cli-args.js";
 import { ArtifactPane, type Artifact } from "./artifact-pane";
 
 type WorkState = {
@@ -58,11 +64,8 @@ function nodeClass(id: string, state: WorkState | null): string {
     : "pipeline";
   const classes = ["node", kind];
   if (!state) return classes.join(" ");
-  if (state.completedStages.includes(id)) classes.push("done");
-  if (state.currentStage === id) classes.push("current");
-  if (state.awaitingApproval === id || state.awaitingGuidance === id) {
-    classes.push("wait");
-  }
+  const emphasis = graphNodeEmphasis(id, state);
+  if (emphasis) classes.push(emphasis);
   return classes.join(" ");
 }
 
@@ -207,6 +210,14 @@ export function Console() {
     if (state.awaitingApproval) {
       return `Awaiting approval of ${state.awaitingApproval}. Approve, reject, or amend.`;
     }
+    if (state.completedStages.includes(state.currentStage)) {
+      const next = isStageName(state.currentStage)
+        ? nextPipelineStage(state.currentStage)
+        : null;
+      return next
+        ? `${state.currentStage} is approved. Pipeline ${state.pipelineStatus}. Next: ${next}.`
+        : `${state.currentStage} is approved. Pipeline ${state.pipelineStatus}.`;
+    }
     return `Current stage: ${state.currentStage} (${state.pipelineStatus}).`;
   }, [state]);
 
@@ -319,7 +330,7 @@ export function Console() {
                 <input
                   value={scenario}
                   onChange={(e) => setScenario(e.target.value)}
-                  placeholder="1"
+                  placeholder="optional"
                 />
               </label>
             ) : null}

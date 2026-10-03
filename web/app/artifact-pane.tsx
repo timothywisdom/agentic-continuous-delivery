@@ -8,7 +8,7 @@ import {
   tokenizeJson,
   tokenizeYaml,
   type SyntaxToken,
-} from "../../src/ui/artifacts";
+} from "../../dist/ui/artifacts.js";
 
 export type Artifact = { name: string; path?: string; contents: string };
 

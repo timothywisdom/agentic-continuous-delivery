@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildAcDArgv } from "../src/ui/cli-args.js";
+import { buildAcDArgv, graphNodeEmphasis } from "../src/ui/cli-args.js";
 import {
   artifactKind,
   editorFileHref,
@@ -11,6 +11,7 @@ import {
 } from "../src/ui/artifacts.js";
 import { validateRepoRoot } from "../src/ui/repo.js";
 import { hasProductionUiBuild, resolveNextBin } from "../src/cli/ui.js";
+import { stageUiApp, uiAppNeedsStaging } from "../src/cli/ui-stage.js";
 import {
   gateUiRequest,
   isAllowedHost,
@@ -112,6 +113,27 @@ describe("ui cli argv", () => {
   });
 });
 
+describe("graphNodeEmphasis", () => {
+  it("shows specify as done after approval even if currentStage is still specify", () => {
+    expect(
+      graphNodeEmphasis("specify", {
+        currentStage: "specify",
+        completedStages: ["intake", "specify"],
+        awaitingApproval: null,
+        awaitingGuidance: null,
+      }),
+    ).toBe("done");
+    expect(
+      graphNodeEmphasis("specify", {
+        currentStage: "specify",
+        completedStages: ["intake"],
+        awaitingApproval: "specify",
+        awaitingGuidance: null,
+      }),
+    ).toBe("wait");
+  });
+});
+
 describe("artifact view helpers", () => {
   it("classifies names and builds editor hrefs", () => {
     expect(artifactKind("intent.md")).toBe("markdown");
@@ -161,5 +183,42 @@ describe("resolveNextBin", () => {
     expect(bin.includes("next/dist/bin/next") || bin.endsWith("dist/bin/next")).toBe(
       true,
     );
+  });
+});
+
+describe("stageUiApp", () => {
+  it("runs in place for a kit checkout and stages an npx tree", () => {
+    expect(uiAppNeedsStaging("/home/me/source/acd/web")).toBe(false);
+    expect(uiAppNeedsStaging("/tmp/prefix/node_modules/acd-kit/web")).toBe(true);
+
+    const fake = mkdtempSync(join(tmpdir(), "acd-npx-"));
+    const kit = join(fake, "node_modules", "acd-kit");
+    mkdirSync(join(kit, "web", "app"), { recursive: true });
+    mkdirSync(join(kit, "src"), { recursive: true });
+    mkdirSync(join(kit, "dist"), { recursive: true });
+    symlinkSync(
+      join(process.cwd(), "node_modules", "next"),
+      join(fake, "node_modules", "next"),
+      "dir",
+    );
+    writeFileSync(
+      join(kit, "package.json"),
+      JSON.stringify({ name: "acd-kit", version: "0.0.0-test" }),
+    );
+    writeFileSync(join(kit, "web", "package.json"), '{"name":"@acd/web"}');
+    writeFileSync(
+      join(kit, "web", "app", "layout.tsx"),
+      "export default function L(){return null}\n",
+    );
+    writeFileSync(join(kit, "src", "noop.ts"), "export {}\n");
+    writeFileSync(join(kit, "dist", "noop.js"), "export {}\n");
+
+    const staged = stageUiApp(kit, join(fake, "staging"));
+    expect(staged.includes(`${join("node_modules", "acd-kit")}`)).toBe(false);
+    expect(existsSync(join(staged, "app", "layout.tsx"))).toBe(true);
+    expect(existsSync(join(staged, "..", "src", "noop.ts"))).toBe(true);
+    expect(existsSync(join(staged, "..", "dist", "noop.js"))).toBe(true);
+    expect(lstatSync(join(staged, "node_modules")).isSymbolicLink()).toBe(true);
+    expect(existsSync(join(staged, "node_modules", "next"))).toBe(true);
   });
 });

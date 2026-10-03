@@ -80,6 +80,10 @@ export interface ImplementOutput {
   sessionSummaryPath: string;
   commitCreated: boolean;
   pipelineStatus: PipelineStatus;
+  /** Scenarios that went green in this run (red-green-refactor cycles). */
+  scenariosCompleted: number[];
+  /** Numbered scenarios still waiting after this run. */
+  remaining: number;
 }
 
 export interface ReviewFinding {

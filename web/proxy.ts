@@ -4,7 +4,7 @@ import {
   CSRF_COOKIE,
   CSRF_HEADER,
   gateUiRequest,
-} from "../src/ui/security";
+} from "../dist/ui/security.js";
 
 function cookieValue(header: string | null, name: string): string | null {
   if (!header) return null;
@@ -15,7 +15,7 @@ function cookieValue(header: string | null, name: string): string | null {
   return null;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith("/api/")) {
     return NextResponse.next();

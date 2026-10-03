@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stageUiApp, uiAppNeedsStaging, installPrefix } from "./ui-stage.js";
 
 const kitRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -31,19 +32,24 @@ export async function startUi(opts: {
   repoRoot: string;
   port?: number;
 }): Promise<void> {
-  const dir = webAppDir();
-  if (!existsSync(join(dir, "package.json"))) {
+  const packaged = webAppDir();
+  if (!existsSync(join(packaged, "package.json"))) {
     throw new Error(
-      `Web UI not found at ${dir}. Reinstall acd-kit or run from the kit repo.`,
+      `Web UI not found at ${packaged}. Reinstall acd-kit or run from the kit repo.`,
     );
   }
 
+  const dir = stageUiApp(kitRoot);
   const port = opts.port ?? defaultUiPort();
   const nextBin = resolveNextBin(kitRoot);
   const production = hasProductionUiBuild(dir);
   const args = production
     ? ["start", "-H", "127.0.0.1", "-p", String(port)]
     : ["dev", "-H", "127.0.0.1", "-p", String(port)];
+
+  const turbopackRoot = uiAppNeedsStaging(packaged)
+    ? installPrefix(kitRoot)
+    : kitRoot;
 
   process.stderr.write(
     `acd-kit: UI on http://127.0.0.1:${port} (bound to 127.0.0.1; drives CLI in ${opts.repoRoot}` +
@@ -59,6 +65,7 @@ export async function startUi(opts: {
         ACD_REPO_ROOT: opts.repoRoot,
         ACD_KIT_ROOT: kitRoot,
         ACD_UI_PORT: String(port),
+        ACD_TURBOPACK_ROOT: turbopackRoot,
         HOSTNAME: "127.0.0.1",
         // Next auto-installs TypeScript for next.config.ts; prefer npm so a
         // global yarn CLI cannot trip over acd-kit's package.json.

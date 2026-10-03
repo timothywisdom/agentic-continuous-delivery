@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buildAcDArgv, type UiRunRequest } from "../../../../src/ui/cli-args";
+import { buildAcDArgv, type UiRunRequest } from "../../../../dist/ui/cli-args.js";
 import { startCliJob } from "../../../lib/jobs";
 import { jsonHeaders } from "../../../lib/session";
 

@@ -160,6 +160,8 @@ export const implementOutputSchema = z.object({
   sessionSummaryPath: z.string(),
   commitCreated: z.boolean(),
   pipelineStatus: z.enum(["green", "red"]),
+  scenariosCompleted: z.array(z.number().int().positive()),
+  remaining: z.number().int().nonnegative(),
 });
 
 export const reviewInputSchema = z.object({

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { CSRF_COOKIE } from "../../../../src/ui/security";
+import { CSRF_COOKIE } from "../../../../dist/ui/security.js";
 import { csrfCookieHeader, jsonHeaders, mintCsrfToken, repoRoot, setRepoRoot } from "../../../lib/session";
 
 export const runtime = "nodejs";

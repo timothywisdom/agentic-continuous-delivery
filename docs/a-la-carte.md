@@ -7,7 +7,8 @@ Every stage is `acd <stage>` with the same typed contracts. Start wherever artif
 | Plain English idea | `acd intake --from "..."` | Creates `.acd/work/<id>/` |
 | Need specs | `acd specify [--artifact intent\|behavior\|feature\|acceptance\|all]` | Agents draft; classifier gates validator |
 | Spec waiting | `acd approve specify` / `acd reject specify --reason "..."` | Only if `require_human_approval` |
-| One scenario | `acd implement [--scenario N]` | Test-first; one session |
+| Remaining scenarios | `acd implement` | Test-first; one red-green-refactor cycle per scenario; stops if red |
+| One scenario | `acd implement --scenario N` | Re-run or target a numbered scenario |
 | Pipeline red | `acd fix` | Only legal command for new changes |
 | Before commit/PR | `acd review` | Mechanical hooks + parallel expert agents |
 | Review waiting | `acd approve review` | Config |

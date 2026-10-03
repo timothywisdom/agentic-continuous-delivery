@@ -33,7 +33,7 @@ Usage:
   acd-kit config
   acd intake --from "<plain english>"
   acd specify [--artifact intent|behavior|feature|acceptance|all]
-  acd implement [--scenario N]
+  acd implement [--scenario N]   # omit N: remaining scenarios, one red-green cycle each
   acd review
   acd pr
   acd ci-review

@@ -1,6 +1,8 @@
 # acd-kit
 
-**Agentic Continuous Delivery (ACD) for your repo, run with `npx`.**
+**Agentic Continuous Delivery (ACD) for your repo, run with** `npx`**.**
+
+ACD is a framework for building software following the practices of continous integration, continuous delivery and TDD/BDD. You choose the agentic harness (eg. Cursor/Claude/etc) and run ACD steps via a CLI or UI.
 
 The CLI is a **deterministic orchestrator**: typed stages, AI only for generative work, harness/HitL as configuration.
 
@@ -26,7 +28,7 @@ npx acd-kit intake --from "Build a calculator web app"
 
 Default harness is `stub` (no API keys). For Cursor agents, copy `.acd/.env.local.example` → `.acd/.env.local` and set `CURSOR_API_KEY`.
 
-> Use **`npx acd-kit`**, not `npx acd`. The name `acd` on npm is a different package.
+> Use `npx acd-kit`, not `npx acd`. The name `acd` on npm is a different package.
 
 ## Optional adapters (not in `.acd/`)
 
@@ -37,17 +39,17 @@ npx acd-kit init --cursor    # AGENTS.md + .cursor/rules and skills
 npx acd-kit init --github    # .github/workflows/acd-ci-review.yml
 ```
 
-Skills and agents used by the CLI stay **inside the `acd-kit` package**, not copied into your app.
+Skills and agents used by the CLI stay **inside the** `acd-kit` **package**, not copied into your app.
 
 ## What `init` adds
 
-| Path | Purpose | Commit? |
-| --- | --- | --- |
-| `.acd/acd.config.yaml` | Thin project pins | Yes |
-| `.acd/acd.config.local.yaml` | Harness / URL overrides | No |
-| `.acd/.env.local` | API keys | No |
-| `.acd/system-constraints.yaml` | Copied into new work items | Yes |
-| `.acd/work/<id>/` | Work sessions | No |
+| Path                           | Purpose                    | Commit? |
+| ------------------------------ | -------------------------- | ------- |
+| `.acd/acd.config.yaml`         | Thin project pins          | Yes     |
+| `.acd/acd.config.local.yaml`   | Harness / URL overrides    | No      |
+| `.acd/.env.local`              | API keys                   | No      |
+| `.acd/system-constraints.yaml` | Copied into new work items | Yes     |
+| `.acd/work/<id>/`              | Work sessions              | No      |
 
 ## Commands
 
@@ -60,7 +62,7 @@ npx acd-kit specify
 npx acd-kit config
 ```
 
-UI: <http://127.0.0.1:4173> (loopback only). It drives the same CLI.
+UI: [http://127.0.0.1:4173](http://127.0.0.1:4173) (loopback only). It drives the same CLI.
 
 ## Configuration
 

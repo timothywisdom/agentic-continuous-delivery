@@ -16,6 +16,9 @@
             "none",
             "custom"
           ]
+        },
+        "max_repair_loops": {
+          "type": "number"
         }
       },
       "required": [

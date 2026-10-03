@@ -53,7 +53,7 @@ stages:
     tier: med
     require_human_approval: true
 
-  # One BDD scenario → failing acceptance test → production code (TDD).
+  # Remaining BDD scenarios (or --scenario N) → red-green-refactor.
   implement:
     tier: high
     require_human_approval: false

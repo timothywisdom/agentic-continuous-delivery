@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -10,14 +16,29 @@ import {
 } from "../src/config/load.js";
 import { initRepo } from "../src/init/copy.js";
 import { loadEnvLocal } from "../src/config/env.js";
-import { resolveInvocation, stageRequiresHumanApproval } from "../src/config/resolve.js";
+import {
+  resolveInvocation,
+  stageRequiresHumanApproval,
+} from "../src/config/resolve.js";
 import { runStage } from "../src/orchestrator/index.js";
 import { classifierGate } from "../src/orchestrator/gates.js";
 import { assertCanRunStage, IllegalTransitionError } from "../src/work/fsm.js";
-import { readState, listArtifacts, saveWorkArtifact, writeArtifact, workDir } from "../src/work/store.js";
+import {
+  readArtifact,
+  readState,
+  listArtifacts,
+  saveWorkArtifact,
+  writeArtifact,
+  workDir,
+} from "../src/work/store.js";
 import type { WorkState } from "../src/types/work.js";
-import { parseScenarios } from "../src/spec/gherkin.js";
+import {
+  numberScenarios,
+  parseScenarios,
+  selectImplementScenarios,
+} from "../src/spec/gherkin.js";
 import { intakeStage } from "../src/stages/intake.js";
+import { implementStage } from "../src/stages/implement.js";
 import { specifyStage } from "../src/stages/specify.js";
 
 function blankState(over: Partial<WorkState> = {}): WorkState {
@@ -50,6 +71,44 @@ describe("gherkin", () => {
   Scenario: b
     Then z`;
     expect(parseScenarios(text).map((s) => s.title)).toEqual(["a", "b"]);
+  });
+
+  it("numbers headings and reads --scenario indexes from the file", () => {
+    const text = `Feature: x
+  Scenario: first open
+    Then y
+  Scenario Outline: add two numbers
+    Then z`;
+    const numbered = numberScenarios(text);
+    expect(numbered).toContain("Scenario: 1. first open");
+    expect(numbered).toContain("Scenario Outline: 2. add two numbers");
+    expect(parseScenarios(numbered).map((s) => s.index)).toEqual([1, 2]);
+    expect(parseScenarios(numbered).map((s) => s.title)).toEqual([
+      "first open",
+      "add two numbers",
+    ]);
+  });
+
+  it("selects remaining scenarios when --scenario is omitted", () => {
+    const scenarios = parseScenarios(`Feature: x
+  Scenario: 1. a
+    Then y
+  Scenario: 2. b
+    Then z
+  Scenario: 3. c
+    Then w`);
+    expect(
+      selectImplementScenarios(scenarios, undefined, null).map((s) => s.index),
+    ).toEqual([1, 2, 3]);
+    expect(
+      selectImplementScenarios(scenarios, undefined, 1).map((s) => s.index),
+    ).toEqual([2, 3]);
+    expect(selectImplementScenarios(scenarios, 2, 1).map((s) => s.index)).toEqual(
+      [2],
+    );
+    expect(() => selectImplementScenarios(scenarios, undefined, 3)).toThrow(
+      /already implemented/,
+    );
   });
 });
 
@@ -137,7 +196,10 @@ describe("config", () => {
 
   it("loads export KEY=value from .env.local", () => {
     const dir = mkdtempSync(join(tmpdir(), "acd-env-"));
-    writeFileSync(join(dir, ".env.local"), "export ACD_TEST_ENV_KEY=from-export\n");
+    writeFileSync(
+      join(dir, ".env.local"),
+      "export ACD_TEST_ENV_KEY=from-export\n",
+    );
     delete process.env.ACD_TEST_ENV_KEY;
     loadEnvLocal(dir);
     expect(process.env.ACD_TEST_ENV_KEY).toBe("from-export");
@@ -147,7 +209,10 @@ describe("config", () => {
   it("prefers .acd/.env.local over repo-root .env.local", () => {
     const dir = mkdtempSync(join(tmpdir(), "acd-env-home-"));
     mkdirSync(join(dir, ".acd"));
-    writeFileSync(join(dir, ".acd", ".env.local"), "ACD_TEST_ENV_KEY=from-acd-home\n");
+    writeFileSync(
+      join(dir, ".acd", ".env.local"),
+      "ACD_TEST_ENV_KEY=from-acd-home\n",
+    );
     writeFileSync(join(dir, ".env.local"), "ACD_TEST_ENV_KEY=from-root\n");
     delete process.env.ACD_TEST_ENV_KEY;
     loadEnvLocal(dir);
@@ -196,7 +261,10 @@ describe("fsm", () => {
   it("blocks feature work when pipeline is red", () => {
     expect(() =>
       assertCanRunStage(
-        blankState({ pipelineStatus: "red", completedStages: ["intake", "specify"] }),
+        blankState({
+          pipelineStatus: "red",
+          completedStages: ["intake", "specify"],
+        }),
         "implement",
         config,
       ),
@@ -233,7 +301,8 @@ describe("intake and specify (stub harness)", () => {
       join(repoRoot, "acd.config.yaml"),
       `defaults:\n  harness: stub\n  hitl: custom\nstages:\n  specify:\n    require_human_approval: true\n    harness: stub\nharnesses:\n  stub:\n    driver: stub\n    models:\n      classify: stub-classify\n      low: stub-low\n      med: stub-med\n      high: stub-high\nclassifiers:\n  stub-classify:\n    driver: stub\n`,
     );
-    const { applyCliOverrides, loadRepoConfig } = await import("../src/config/load.js");
+    const { applyCliOverrides, loadRepoConfig } =
+      await import("../src/config/load.js");
     const config = applyCliOverrides(loadRepoConfig(repoRoot), {});
     const intakeResult = await runStage(
       intakeStage,
@@ -260,7 +329,8 @@ describe("intake and specify (stub harness)", () => {
       join(repoRoot, "acd.config.yaml"),
       `defaults:\n  harness: stub\n  hitl: none\n  max_repair_loops: 3\nstages:\n  specify:\n    harness: stub\nharnesses:\n  stub:\n    driver: stub\n    models:\n      classify: stub-classify\n      low: stub-low\n      med: stub-med\n      high: stub-high\nclassifiers:\n  stub-classify:\n    driver: stub\n`,
     );
-    const { applyCliOverrides, loadRepoConfig } = await import("../src/config/load.js");
+    const { applyCliOverrides, loadRepoConfig } =
+      await import("../src/config/load.js");
     const config = applyCliOverrides(loadRepoConfig(repoRoot), {});
     const intakeResult = await runStage(
       intakeStage,
@@ -289,7 +359,8 @@ describe("intake and specify (stub harness)", () => {
       join(repoRoot, "acd.config.yaml"),
       `defaults:\n  harness: stub\n  hitl: none\n  max_repair_loops: 2\nstages:\n  specify:\n    harness: stub\nharnesses:\n  stub:\n    driver: stub\n    models:\n      classify: stub-classify\n      low: stub-low\n      med: stub-med\n      high: stub-high\nclassifiers:\n  stub-classify:\n    driver: stub\n`,
     );
-    const { applyCliOverrides, loadRepoConfig } = await import("../src/config/load.js");
+    const { applyCliOverrides, loadRepoConfig } =
+      await import("../src/config/load.js");
     const { amendStage } = await import("../src/orchestrator/index.js");
     const config = applyCliOverrides(loadRepoConfig(repoRoot), {});
     const intakeResult = await runStage(
@@ -309,7 +380,13 @@ describe("intake and specify (stub harness)", () => {
     const paused = readState(repoRoot, workId);
     expect(paused.awaitingGuidance).toBe("specify");
 
-    const amended = amendStage(repoRoot, workId, "specify", "Keep scenarios short", "test");
+    const amended = amendStage(
+      repoRoot,
+      workId,
+      "specify",
+      "Keep scenarios short",
+      "test",
+    );
     expect(amended.awaitingGuidance).toBeNull();
     expect(amended.guidanceNote).toContain("Keep scenarios short");
 
@@ -322,6 +399,58 @@ describe("intake and specify (stub harness)", () => {
     delete process.env.ACD_STUB_CLASSIFY_FAILS;
     expect(resumed.awaitingGuidance).toBe(false);
     expect(resumed.output?.scenarioCount).toBeGreaterThan(0);
+  });
+
+  it("implements remaining numbered scenarios when --scenario is omitted", async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), "acd-impl-"));
+    writeFileSync(
+      join(repoRoot, "acd.config.yaml"),
+      `defaults:\n  harness: stub\n  hitl: none\nstages:\n  specify:\n    harness: stub\n  implement:\n    harness: stub\nharnesses:\n  stub:\n    driver: stub\n    models:\n      classify: stub-classify\n      low: stub-low\n      med: stub-med\n      high: stub-high\nclassifiers:\n  stub-classify:\n    driver: stub\nrepo:\n  testCommand: ""\n`,
+    );
+    const { applyCliOverrides, loadRepoConfig } =
+      await import("../src/config/load.js");
+    const config = applyCliOverrides(loadRepoConfig(repoRoot), {});
+    const intakeResult = await runStage(
+      intakeStage,
+      { sourceText: "Add a calculator" },
+      { repoRoot, config, overrides: {} },
+    );
+    const workId = intakeResult.output!.workId;
+    await runStage(
+      specifyStage,
+      { workId, artifact: "all" },
+      { repoRoot, config, overrides: {}, workId },
+    );
+    const feature = readArtifact(repoRoot, workId, "behavior.feature");
+    expect(feature).toMatch(/Scenario: 1\. /);
+    expect(feature).toMatch(/Scenario: 2\. /);
+
+    const implemented = await runStage(
+      implementStage,
+      { workId },
+      { repoRoot, config, overrides: {}, workId },
+    );
+    expect(implemented.output?.scenariosCompleted).toEqual([1, 2]);
+    expect(implemented.output?.remaining).toBe(0);
+    expect(implemented.output?.scenario).toBe(2);
+    expect(readState(repoRoot, workId).currentScenario).toBe(2);
+
+    const one = await runStage(
+      implementStage,
+      { workId, scenario: 1 },
+      { repoRoot, config, overrides: {}, workId },
+    );
+    expect(one.output?.scenariosCompleted).toEqual([1]);
+    expect(one.output?.remaining).toBe(0);
+    expect(readState(repoRoot, workId).currentScenario).toBe(2);
+
+    await expect(
+      runStage(
+        implementStage,
+        { workId },
+        { repoRoot, config, overrides: {}, workId },
+      ),
+    ).rejects.toThrow(/already implemented/);
   });
 });
 
@@ -349,9 +478,9 @@ describe("initRepo", () => {
     initRepo(dir, { cursorIde: true, github: true });
     expect(existsSync(join(dir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(dir, ".cursor", "rules"))).toBe(true);
-    expect(existsSync(join(dir, ".github", "workflows", "acd-ci-review.yml"))).toBe(
-      true,
-    );
+    expect(
+      existsSync(join(dir, ".github", "workflows", "acd-ci-review.yml")),
+    ).toBe(true);
   });
 });
 

@@ -3,7 +3,11 @@ import { AnthropicDriver } from "./anthropic.js";
 import { ClassifierDriver } from "./classifier.js";
 import { CursorDriver } from "./cursor.js";
 import { StubDriver } from "./stub.js";
-import type { HarnessDriver, HarnessRunRequest, HarnessRunResult } from "./types.js";
+import type {
+  HarnessDriver,
+  HarnessRunRequest,
+  HarnessRunResult,
+} from "./types.js";
 import { resolveInvocation } from "../config/resolve.js";
 import type { AgentRole, CliOverrides } from "../types/config.js";
 import type { StageName } from "../types/stages.js";

@@ -1,6 +1,6 @@
 {
   "name": "acd-kit",
-  "version": "0.1.2",
+  "version": "0.1.6",
   "description": "Agentic Continuous Delivery kit: deterministic orchestrator, typed stages, pluggable harnesses",
   "type": "module",
   "bin": {
@@ -18,7 +18,7 @@
     "docs",
     "web/app",
     "web/lib",
-    "web/middleware.ts",
+    "web/proxy.ts",
     "web/next.config.ts",
     "web/next-env.d.ts",
     "web/package.json",
@@ -40,7 +40,10 @@
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.32",
-    "next": "^15.5.4",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "next": "^16.3.8",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",
@@ -50,9 +53,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/node": "^22.13.10",
     "typescript": "^5.8.2",
-    "vitest": "^3.0.9"
+    "vitest": "^5.0.3"
   },
   "repository": {
     "type": "git",

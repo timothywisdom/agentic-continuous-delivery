@@ -36,6 +36,15 @@
         "green",
         "red"
       ]
+    },
+    "scenariosCompleted": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "remaining": {
+      "type": "number"
     }
   },
   "required": [
@@ -46,7 +55,9 @@
     "testsAdded",
     "sessionSummaryPath",
     "commitCreated",
-    "pipelineStatus"
+    "pipelineStatus",
+    "scenariosCompleted",
+    "remaining"
   ],
   "additionalProperties": false
 }

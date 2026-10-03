@@ -77,6 +77,39 @@
         }
       ]
     },
+    "awaitingGuidance": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "intake",
+            "specify",
+            "implement",
+            "review",
+            "pr",
+            "ci_review",
+            "fix",
+            "deploy",
+            "canary",
+            "rollback",
+            "hypothesis"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "guidanceNote": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "currentScenario": {
       "anyOf": [
         {

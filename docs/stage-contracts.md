@@ -6,7 +6,7 @@ Each stage has Zod input/output schemas in `src/schemas/zod.ts` and JSON Schema 
 | --- | --- | --- | --- |
 | intake | `{ sourceText, workId? }` | `{ workId, workDir, intentPath }` | none |
 | specify | `{ workId, artifact }` | artifacts paths, `scenarioCount`, `tooLarge`, findings | spec_collaborator, spec_validator, criteria_gate |
-| implement | `{ workId, scenario? }` | scenario, files, tests, session summary, pipelineStatus | implementation |
+| implement | `{ workId, scenario? }` | last scenario, files, tests, session summary, pipelineStatus, `scenariosCompleted`, `remaining` | implementation |
 | review | `{ workId, diff? }` | `decision`, findings, mechanical | review-* + experts + criteria_gate |
 | pr | `{ workId, title?, body? }` | url, branch, body | none (scripted) |
 | ci_review | `{ workId? }` | decision, findings, testsOk | same as review |
@@ -14,7 +14,7 @@ Each stage has Zod input/output schemas in `src/schemas/zod.ts` and JSON Schema 
 
 **Orchestrator mapping (code, not an LLM):**
 
-- SpecifyOutput → ImplementInput (`workId`, next scenario)
+- SpecifyOutput → ImplementInput (`workId`; omit `scenario` to run remaining numbered scenarios)
 - ImplementOutput → ReviewInput (`workId`, git diff)
 - ReviewOutput → PrInput when `decision === pass` (and HitL approved if required)
 

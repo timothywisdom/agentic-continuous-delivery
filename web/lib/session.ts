@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { CSRF_COOKIE } from "../../src/ui/security";
-import { validateRepoRoot } from "../../src/ui/repo";
+import { CSRF_COOKIE } from "../../dist/ui/security.js";
+import { validateRepoRoot } from "../../dist/ui/repo.js";
 
 const g = globalThis as typeof globalThis & { __acdRepoRoot?: string };
 

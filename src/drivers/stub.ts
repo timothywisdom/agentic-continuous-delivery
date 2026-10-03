@@ -55,12 +55,12 @@ function stubBehavior(source: string): string {
   const title = source.split("\n")[0]?.slice(0, 80) || "change";
   return `Feature: ${title}
 
-  Scenario: primary success path
+  Scenario: 1. primary success path
     Given the current system
     When the change is applied
     Then the observable outcome in the intent occurs
 
-  Scenario: failure path
+  Scenario: 2. failure path
     Given an invalid or boundary condition
     When the change is exercised
     Then the system fails safely with an observable error

@@ -6,7 +6,12 @@ import {
 import type { StageDef } from "../orchestrator/index.js";
 import { NeedsGuidanceError } from "../orchestrator/guidance.js";
 import { specifyInputSchema, specifyOutputSchema } from "../schemas/zod.js";
-import { countScenarios, isSpecTooLarge, parseScenarios } from "../spec/gherkin.js";
+import {
+  countScenarios,
+  isSpecTooLarge,
+  numberScenarios,
+  parseScenarios,
+} from "../spec/gherkin.js";
 import type { SpecifyInput, SpecifyOutput } from "../types/work.js";
 import { logProgress } from "../util/log.js";
 import { emit } from "../work/events.js";
@@ -198,8 +203,11 @@ async function draftArtifacts(
       ),
     );
     if (out.behavior) {
-      writeArtifact(ctx.repoRoot, workId, "behavior.feature", out.behavior);
-      current.behavior = out.behavior;
+      current.behavior = persistNumberedBehavior(
+        ctx.repoRoot,
+        workId,
+        out.behavior,
+      );
     }
     findings.push(...(out.gaps ?? []));
   }
@@ -270,7 +278,7 @@ async function repairArtifacts(
     writeArtifact(ctx.repoRoot, workId, "intent.md", out.intent);
   }
   if (out.behavior) {
-    writeArtifact(ctx.repoRoot, workId, "behavior.feature", out.behavior);
+    persistNumberedBehavior(ctx.repoRoot, workId, out.behavior);
   }
   if (out.feature) {
     writeArtifact(ctx.repoRoot, workId, "feature.md", out.feature);
@@ -312,6 +320,16 @@ function formatFeedback(
   return parts.join("\n") || "Spec did not pass validation.";
 }
 
+function persistNumberedBehavior(
+  repoRoot: string,
+  workId: string,
+  behavior: string,
+): string {
+  const numbered = numberScenarios(behavior);
+  writeArtifact(repoRoot, workId, "behavior.feature", numbered);
+  return numbered;
+}
+
 function clearGuidance(repoRoot: string, workId: string): void {
   const state = readState(repoRoot, workId);
   if (!state.awaitingGuidance && !state.guidanceNote && !state.lastError) return;
@@ -335,6 +353,11 @@ function finishSpecify(
   latest: Artifacts,
   findings: string[],
 ): SpecifyOutput {
+  latest.behavior = persistNumberedBehavior(
+    repoRoot,
+    workId,
+    latest.behavior,
+  );
   const scenarioCount = countScenarios(latest.behavior);
   const tooLarge = isSpecTooLarge(latest.intent, scenarioCount);
   if (tooLarge) {
