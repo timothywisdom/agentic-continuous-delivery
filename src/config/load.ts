@@ -76,6 +76,14 @@ export function deepMergeConfig(
     agents,
     harnesses,
     classifiers,
+    telemetry: {
+      ...base.telemetry,
+      ...overlay.telemetry,
+      pricing: {
+        ...base.telemetry?.pricing,
+        ...overlay.telemetry?.pricing,
+      },
+    },
     repo: { ...base.repo, ...overlay.repo },
   });
 }

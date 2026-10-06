@@ -8,6 +8,7 @@ const turbopackRoot = process.env.ACD_TURBOPACK_ROOT?.trim() || fallbackRoot;
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  agentRules: false,
   outputFileTracingRoot: turbopackRoot,
   turbopack: {
     root: turbopackRoot,

@@ -17,13 +17,22 @@ import { intakeStage } from "../stages/intake.js";
 import { prStage } from "../stages/pr.js";
 import { reviewStage } from "../stages/review.js";
 import { specifyStage } from "../stages/specify.js";
-import type { CliOverrides } from "../types/config.js";
+import type { Span } from "@opentelemetry/api";
+import type { AcdConfig, CliOverrides } from "../types/config.js";
 import { isStageName, STAGE_NAMES, V1_STUBS, type StageName } from "../types/stages.js";
 import { runTests } from "../hooks/mechanical.js";
 import { listArtifacts, listWorkIds, readEvents, readState, resolveWorkId, saveWorkArtifact } from "../work/store.js";
 import { emit } from "../work/events.js";
 import { readFileSync } from "node:fs";
 import { startUi } from "./ui.js";
+import {
+  decisionFromCommand,
+  decisionFromStageResult,
+  initTelemetry,
+  noteValue,
+  shutdownTelemetry,
+  withSpan,
+} from "../telemetry/index.js";
 
 function usage(): string {
   return `acd — Agentic Continuous Delivery runner (deterministic orchestrator)
@@ -123,19 +132,32 @@ async function main(): Promise<void> {
   }
 
   const overrides = overridesFromFlags(flags);
+  if (!process.env.ACD_REPO_ROOT) process.env.ACD_REPO_ROOT = repoRoot;
 
   if (cmd === "init") {
-    const target = resolve(args[0] ?? repoRoot);
-    initRepo(target, {
-      cursorIde: flags.cursor === true,
-      github: flags.github === true,
-    });
-    process.stdout.write(
-      `Initialized ACD in ${join(target, ".acd")}\n\n` +
-        `Next:\n` +
-        `  npx acd-kit ui\n` +
-        `  npx acd-kit intake --from "<what you want to build>"\n`,
-    );
+    initTelemetry();
+    try {
+      await withSpan(
+        "acd.command.init",
+        { "acd.command": "init", "acd.repo_root": repoRoot },
+        async (span) => {
+          const target = resolve(args[0] ?? repoRoot);
+          initRepo(target, {
+            cursorIde: flags.cursor === true,
+            github: flags.github === true,
+          });
+          noteValue("initialized .acd", { dir: join(target, ".acd") }, span);
+          process.stdout.write(
+            `Initialized ACD in ${join(target, ".acd")}\n\n` +
+              `Next:\n` +
+              `  npx acd-kit ui\n` +
+              `  npx acd-kit intake --from "<what you want to build>"\n`,
+          );
+        },
+      );
+    } finally {
+      await shutdownTelemetry();
+    }
     return;
   }
 
@@ -154,9 +176,33 @@ async function main(): Promise<void> {
 
   const config = applyCliOverrides(loadRepoConfig(repoRoot), overrides);
   const ctx = { repoRoot, config, overrides };
+  initTelemetry(config.telemetry);
+  try {
+    await withSpan(
+      `acd.command.${cmd}`,
+      { "acd.command": cmd, "acd.repo_root": repoRoot },
+      async (span) => {
+        await dispatchCommand(cmd, args, flags, ctx, span);
+      },
+    );
+  } finally {
+    await shutdownTelemetry();
+  }
+}
+
+async function dispatchCommand(
+  cmd: string,
+  args: string[],
+  flags: Record<string, string | boolean>,
+  ctx: { repoRoot: string; config: AcdConfig; overrides: CliOverrides },
+  span: Span,
+): Promise<void> {
+  const { repoRoot, config, overrides } = ctx;
 
   if (cmd === "config") {
-    process.stdout.write(JSON.stringify(describeConfig(config, overrides), null, 2) + "\n");
+    const described = describeConfig(config, overrides);
+    noteValue(decisionFromCommand("config", described), described, span);
+    process.stdout.write(JSON.stringify(described, null, 2) + "\n");
     return;
   }
 
@@ -166,6 +212,7 @@ async function main(): Promise<void> {
       throw new Error(`acd intake requires --from "<plain english>"`);
     }
     const result = await runStage(intakeStage, { sourceText: from }, ctx);
+    noteValue(decisionFromStageResult("intake", result), stagePayload(result), span);
     printJson(result);
     return;
   }
@@ -178,6 +225,7 @@ async function main(): Promise<void> {
       { workId, artifact },
       { ...ctx, workId },
     );
+    noteValue(decisionFromStageResult("specify", result), stagePayload(result), span);
     printJson(result);
     if (result.awaitingGuidance) process.exitCode = 2;
     return;
@@ -192,6 +240,7 @@ async function main(): Promise<void> {
       { workId, scenario },
       { ...ctx, workId },
     );
+    noteValue(decisionFromStageResult("implement", result), stagePayload(result), span);
     printJson(result);
     return;
   }
@@ -199,6 +248,7 @@ async function main(): Promise<void> {
   if (cmd === "review") {
     const workId = resolveWorkId(repoRoot, overrides.workId);
     const result = await runStage(reviewStage, { workId }, { ...ctx, workId });
+    noteValue(decisionFromStageResult("review", result), stagePayload(result), span);
     printJson(result);
     if (result.output?.decision === "block") process.exitCode = 1;
     return;
@@ -207,6 +257,7 @@ async function main(): Promise<void> {
   if (cmd === "pr") {
     const workId = resolveWorkId(repoRoot, overrides.workId);
     const result = await runStage(prStage, { workId }, { ...ctx, workId });
+    noteValue(decisionFromStageResult("pr", result), stagePayload(result), span);
     printJson(result);
     return;
   }
@@ -215,12 +266,14 @@ async function main(): Promise<void> {
     const ids = listWorkIds(repoRoot);
     if (ids.length === 0) {
       const tests = runTests(config, repoRoot);
-      printJson({
+      const payload = {
         decision: tests.ok ? "pass" : "block",
         findings: [],
         testsOk: tests.ok,
         note: "No ACD work items; ran tests only.",
-      });
+      };
+      noteValue(decisionFromCommand("ci-review", payload), payload, span);
+      printJson(payload);
       if (!tests.ok) process.exitCode = 1;
       return;
     }
@@ -232,6 +285,7 @@ async function main(): Promise<void> {
       { workId },
       { ...ctx, workId },
     );
+    noteValue(decisionFromStageResult("ci_review", result), stagePayload(result), span);
     printJson(result);
     if (result.output?.decision === "block") process.exitCode = 1;
     return;
@@ -239,6 +293,7 @@ async function main(): Promise<void> {
 
   if (cmd === "test") {
     const result = runTests(config, repoRoot);
+    noteValue(decisionFromCommand("test", result), result, span);
     printJson(result);
     if (!result.ok) process.exitCode = 1;
     return;
@@ -247,6 +302,7 @@ async function main(): Promise<void> {
   if (cmd === "fix") {
     const workId = resolveWorkId(repoRoot, overrides.workId);
     const result = await runStage(fixStage, { workId }, { ...ctx, workId });
+    noteValue(decisionFromStageResult("fix", result), stagePayload(result), span);
     printJson(result);
     if (result.output?.pipelineStatus === "red") process.exitCode = 1;
     return;
@@ -264,6 +320,7 @@ async function main(): Promise<void> {
       stage,
       process.env.USER ?? "human",
     );
+    noteValue(`approved ${stage}`, state, span);
     printJson(state);
     return;
   }
@@ -283,6 +340,7 @@ async function main(): Promise<void> {
       reason,
       process.env.USER ?? "human",
     );
+    noteValue(`rejected ${stage}: ${reason}`, { ...state, reason }, span);
     printJson(state);
     return;
   }
@@ -308,6 +366,11 @@ async function main(): Promise<void> {
           { workId, artifact: "all" },
           { ...ctx, workId, overrides: { ...overrides, workId } },
         );
+        noteValue(
+          `amended ${stage} and continued: ${decisionFromStageResult("specify", result)}`,
+          { amended: state, continued: stagePayload(result) },
+          span,
+        );
         printJson({ amended: state, continued: result });
         if (result.awaitingGuidance) process.exitCode = 2;
         return;
@@ -316,6 +379,7 @@ async function main(): Promise<void> {
         `acd amend --continue is implemented for specify in v1; re-run \`acd ${stage}\` manually.`,
       );
     }
+    noteValue(`amended ${stage}`, state, span);
     printJson(state);
     process.stderr.write(
       `acd: amended '${stage}'. Re-run: npx acd ${stage}` +
@@ -329,26 +393,32 @@ async function main(): Promise<void> {
     const workId = resolveWorkId(repoRoot, args[0] ?? overrides.workId);
     const state = readState(repoRoot, workId);
     const events = readEvents(repoRoot, workId);
-    printJson({
+    const payload = {
       state,
       lastEvent: events.at(-1) ?? null,
       eventCount: events.length,
-    });
+    };
+    noteValue(decisionFromCommand("status", payload), payload, span);
+    printJson(payload);
     return;
   }
 
   if (cmd === "list") {
     const ids = listWorkIds(repoRoot);
-    printJson({ workIds: ids, latest: ids.at(-1) ?? null });
+    const payload = { workIds: ids, latest: ids.at(-1) ?? null };
+    noteValue(decisionFromCommand("list", payload), payload, span);
+    printJson(payload);
     return;
   }
 
   if (cmd === "artifacts") {
     const workId = resolveWorkId(repoRoot, args[0] ?? overrides.workId);
-    printJson({
+    const payload = {
       workId,
       artifacts: listArtifacts(repoRoot, workId),
-    });
+    };
+    noteValue(decisionFromCommand("artifacts", payload), payload, span);
+    printJson(payload);
     return;
   }
 
@@ -364,6 +434,7 @@ async function main(): Promise<void> {
       name,
       bytes: Buffer.byteLength(contents, "utf8"),
     });
+    noteValue(`saved artifact ${name}`, { workId, name, path, bytes: Buffer.byteLength(contents, "utf8") }, span);
     printJson({ workId, name, path, bytes: Buffer.byteLength(contents, "utf8") });
     return;
   }
@@ -381,6 +452,22 @@ function printJson(value: unknown): void {
   process.stdout.write(JSON.stringify(value, null, 2) + "\n");
 }
 
+function stagePayload(result: {
+  output: unknown;
+  awaitingApproval: boolean;
+  awaitingGuidance: boolean;
+}): unknown {
+  const output =
+    result.output && typeof result.output === "object"
+      ? (result.output as Record<string, unknown>)
+      : { value: result.output };
+  return {
+    ...output,
+    awaitingApproval: result.awaitingApproval,
+    awaitingGuidance: result.awaitingGuidance,
+  };
+}
+
 function readArtifactSaveContents(flags: Record<string, string | boolean>): string {
   if (typeof flags.contents === "string") return flags.contents;
   if (process.stdin.isTTY) {
@@ -391,7 +478,8 @@ function readArtifactSaveContents(flags: Record<string, string | boolean>): stri
   return readFileSync(0, "utf8");
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   process.stderr.write(`${err instanceof Error ? err.message : err}\n`);
+  await shutdownTelemetry();
   process.exit(1);
 });

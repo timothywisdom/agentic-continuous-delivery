@@ -1,4 +1,8 @@
-const SKIP_ARTIFACT_NAMES = new Set(["state.json", "events.jsonl"]);
+const SKIP_ARTIFACT_NAMES = new Set([
+  "state.json",
+  "events.jsonl",
+  "telemetry.jsonl",
+]);
 const ARTIFACT_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 export function isReservedArtifactName(name: string): boolean {

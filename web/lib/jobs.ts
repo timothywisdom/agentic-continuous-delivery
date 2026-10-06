@@ -5,7 +5,7 @@ import { kitRoot, repoRoot } from "./session";
 
 export type LogChunk = {
   t: string;
-  stream: "stdout" | "stderr" | "system";
+  stream: "stdout" | "stderr" | "system" | "telemetry";
   text: string;
 };
 
@@ -72,7 +72,11 @@ export function startCliJob(argv: string[], stdin?: string): JobRecord {
 
   const child = spawn(process.execPath, [bin, ...args], {
     cwd: repoRoot(),
-    env: { ...process.env },
+    env: {
+      ...process.env,
+      ACD_OTEL_UI: "1",
+      ACD_REPO_ROOT: repoRoot(),
+    },
     stdio: [stdin !== undefined ? "pipe" : "ignore", "pipe", "pipe"],
   });
 
@@ -81,13 +85,34 @@ export function startCliJob(argv: string[], stdin?: string): JobRecord {
     child.stdin?.end();
   }
 
-  const onData = (stream: "stdout" | "stderr") => (buf: Buffer) => {
+  const onStdout = (buf: Buffer) => {
     const text = buf.toString("utf8");
     if (!text) return;
-    emit(job, { t: new Date().toISOString(), stream, text });
+    emit(job, { t: new Date().toISOString(), stream: "stdout", text });
   };
-  child.stdout?.on("data", onData("stdout"));
-  child.stderr?.on("data", onData("stderr"));
+  let stderrBuf = "";
+  const onStderr = (buf: Buffer) => {
+    stderrBuf += buf.toString("utf8");
+    const lines = stderrBuf.split("\n");
+    stderrBuf = lines.pop() ?? "";
+    for (const line of lines) {
+      if (line.startsWith("acd.telemetry ")) {
+        emit(job, {
+          t: new Date().toISOString(),
+          stream: "telemetry",
+          text: `${line.slice("acd.telemetry ".length)}\n`,
+        });
+      } else {
+        emit(job, {
+          t: new Date().toISOString(),
+          stream: "stderr",
+          text: `${line}\n`,
+        });
+      }
+    }
+  };
+  child.stdout?.on("data", onStdout);
+  child.stderr?.on("data", onStderr);
   child.on("error", (err) => {
     emit(job, {
       t: new Date().toISOString(),
@@ -96,7 +121,25 @@ export function startCliJob(argv: string[], stdin?: string): JobRecord {
     });
     finish(job, 1);
   });
-  child.on("close", (code) => finish(job, code));
+  child.on("close", (code) => {
+    if (stderrBuf) {
+      if (stderrBuf.startsWith("acd.telemetry ")) {
+        emit(job, {
+          t: new Date().toISOString(),
+          stream: "telemetry",
+          text: `${stderrBuf.slice("acd.telemetry ".length)}\n`,
+        });
+      } else {
+        emit(job, {
+          t: new Date().toISOString(),
+          stream: "stderr",
+          text: stderrBuf,
+        });
+      }
+      stderrBuf = "";
+    }
+    finish(job, code);
+  });
 
   return publicJob(job);
 }

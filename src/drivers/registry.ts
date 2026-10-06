@@ -11,6 +11,13 @@ import type {
 import { resolveInvocation } from "../config/resolve.js";
 import type { AgentRole, CliOverrides } from "../types/config.js";
 import type { StageName } from "../types/stages.js";
+import {
+  currentPricing,
+  noteValue,
+  recordUsage,
+  toTotals,
+  withSpan,
+} from "../telemetry/index.js";
 
 const cache = new Map<DriverKind, HarnessDriver>();
 
@@ -44,28 +51,56 @@ export async function runHarness(
   const harness = config.harnesses[request.harnessName];
   if (!harness) throw new Error(`Unknown harness '${request.harnessName}'`);
 
-  if (request.tier === "classify") {
-    const profile = config.classifiers[request.modelId];
-    if (!profile) {
-      throw new Error(
-        `Unknown classifier profile '${request.modelId}'. Define it under classifiers.`,
-      );
-    }
-    const driver = getDriver(profile.driver);
-    return driver.run({
-      ...request,
-      modelId: profile.model ?? request.modelId,
-      baseUrl: request.baseUrl ?? profile.baseUrl,
-      apiKeyEnv: request.apiKeyEnv ?? profile.apiKeyEnv,
-    });
-  }
+  return withSpan(
+    `acd.harness.${request.role}`,
+    {
+      "acd.harness": request.harnessName,
+      "acd.driver":
+        request.tier === "classify"
+          ? (config.classifiers[request.modelId]?.driver ?? harness.driver)
+          : harness.driver,
+      "acd.model": request.modelId,
+      "acd.role": request.role,
+      "acd.tier": request.tier,
+      "gen_ai.request.model": request.modelId,
+      "gen_ai.operation.name": request.role,
+    },
+    async (span) => {
+      let result: HarnessRunResult;
+      if (request.tier === "classify") {
+        const profile = config.classifiers[request.modelId];
+        if (!profile) {
+          throw new Error(
+            `Unknown classifier profile '${request.modelId}'. Define it under classifiers.`,
+          );
+        }
+        const driver = getDriver(profile.driver);
+        result = await driver.run({
+          ...request,
+          modelId: profile.model ?? request.modelId,
+          baseUrl: request.baseUrl ?? profile.baseUrl,
+          apiKeyEnv: request.apiKeyEnv ?? profile.apiKeyEnv,
+        });
+      } else {
+        const driver = getDriver(harness.driver);
+        result = await driver.run({
+          ...request,
+          baseUrl: request.baseUrl ?? harness.baseUrl,
+          apiKeyEnv: request.apiKeyEnv ?? harness.apiKeyEnv,
+        });
+      }
 
-  const driver = getDriver(harness.driver);
-  return driver.run({
-    ...request,
-    baseUrl: request.baseUrl ?? harness.baseUrl,
-    apiKeyEnv: request.apiKeyEnv ?? harness.apiKeyEnv,
-  });
+      const usage = result.usage ?? {
+        inputTokens: 0,
+        outputTokens: 0,
+        tokenSource: "unavailable" as const,
+      };
+      const totals = toTotals(usage, request.modelId, currentPricing());
+      recordUsage(totals);
+      noteValue(`${request.role} via ${request.harnessName}`, result.json, span);
+      return result;
+    },
+  );
 }
 
 /** Resolve role then run with the correct driver (including classifiers.* for classify). */

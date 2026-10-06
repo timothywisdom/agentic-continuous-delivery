@@ -57,6 +57,14 @@ export interface ClassifierConfig {
   baseUrl?: string;
 }
 
+export interface TelemetryConfig {
+  enabled?: boolean;
+  otlpEndpoint?: string;
+  serviceName?: string;
+  /** USD per 1M tokens, keyed by model id or prefix (`default` is the fallback). */
+  pricing?: Record<string, { inputPerMillion: number; outputPerMillion: number }>;
+}
+
 export interface AcdConfig {
   defaults: {
     harness: string;
@@ -68,6 +76,7 @@ export interface AcdConfig {
   agents: Partial<Record<AgentRole, AgentConfig>>;
   harnesses: Record<string, HarnessConfig>;
   classifiers: Record<string, ClassifierConfig>;
+  telemetry?: TelemetryConfig;
   repo?: {
     testCommand?: string;
     lintCommand?: string;

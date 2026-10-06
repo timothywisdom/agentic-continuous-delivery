@@ -1,4 +1,8 @@
 import { extractJson } from "../util/json.js";
+import {
+  estimateTokensFromText,
+  parseUsageFromUnknown,
+} from "../telemetry/usage.js";
 import type { HarnessDriver, HarnessRunRequest, HarnessRunResult } from "./types.js";
 
 export class AnthropicDriver implements HarnessDriver {
@@ -42,8 +46,15 @@ export class AnthropicDriver implements HarnessDriver {
     }
     const data = (await res.json()) as {
       content?: { type: string; text?: string }[];
+      usage?: unknown;
     };
     const text = data.content?.map((c) => c.text ?? "").join("\n") ?? "";
-    return { text, json: extractJson(text) };
+    const usage =
+      parseUsageFromUnknown(data) ??
+      estimateTokensFromText(
+        `${request.systemRules}\n${request.skillMarkdown}\n${JSON.stringify(request.input)}`,
+        text,
+      );
+    return { text, json: extractJson(text), usage };
   }
 }

@@ -10,6 +10,8 @@ import {
   stageGraphNodes,
 } from "../../dist/ui/cli-args.js";
 import { ArtifactPane, type Artifact } from "./artifact-pane";
+import { TelemetryPane } from "./telemetry-pane";
+import type { TelemetrySpanRecord } from "../../dist/telemetry/record.js";
 
 type WorkState = {
   id: string;
@@ -89,6 +91,7 @@ export function Console() {
   const [harness, setHarness] = useState("");
   const [tier, setTier] = useState("");
   const [logs, setLogs] = useState<LogLine[]>([]);
+  const [spans, setSpans] = useState<TelemetrySpanRecord[]>([]);
   const [running, setRunning] = useState(false);
   const [savingName, setSavingName] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
@@ -151,6 +154,7 @@ export function Console() {
     setRunning(true);
     setRunError(null);
     setLogs([]);
+    setSpans([]);
     try {
       const body = buildBody({
         command,
@@ -165,7 +169,7 @@ export function Console() {
         harness,
         tier,
       });
-      await runAndParse(token, body, setLogs);
+      await runAndParse(token, body, setLogs, setSpans);
       await snapshot();
     } catch (err) {
       setRunError(err instanceof Error ? err.message : String(err));
@@ -275,7 +279,7 @@ export function Console() {
       </div>
 
       <div className="main">
-        <aside className="panel">
+        <aside className="panel drive-panel">
           <h2>Drive CLI</h2>
           <div className="panel-body">
             <label>
@@ -400,7 +404,8 @@ export function Console() {
           </div>
         </aside>
 
-        <section className="panel">
+        <div className="main-right">
+        <section className="panel log-panel">
           <h2>CLI output</h2>
           <pre className="log" ref={logRef}>
             {logs.length === 0
@@ -412,6 +417,8 @@ export function Console() {
                 ))}
           </pre>
         </section>
+        <TelemetryPane spans={spans} running={running} />
+        </div>
       </div>
 
       <section className="panel">
@@ -573,6 +580,7 @@ async function runAndParse(
     stdin?: string;
   },
   setLogs: (fn: (prev: LogLine[]) => LogLine[]) => void,
+  setSpans?: (fn: (prev: TelemetrySpanRecord[]) => TelemetrySpanRecord[]) => void,
 ): Promise<unknown> {
   const res = await fetch("/api/run", {
     method: "POST",
@@ -587,6 +595,15 @@ async function runAndParse(
   if (!res.ok) throw new Error(json.error ?? "Run failed");
   const jobId = json.job.id as string;
   return waitForJob(jobId, token, (line) => {
+    if (line.stream === "telemetry") {
+      try {
+        const span = JSON.parse(line.text.trim()) as TelemetrySpanRecord;
+        if (span?.name) setSpans?.((prev) => [...prev, span]);
+      } catch {
+        /* ignore malformed telemetry */
+      }
+      return;
+    }
     setLogs((prev) => [...prev, line]);
   });
 }

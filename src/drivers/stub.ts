@@ -110,6 +110,14 @@ export class StubDriver implements HarnessDriver {
   async run(request: HarnessRunRequest): Promise<HarnessRunResult> {
     const json = stubPayload(request);
     const text = JSON.stringify(json, null, 2);
-    return { text, json: extractJson(text) ?? json };
+    return {
+      text,
+      json: extractJson(text) ?? json,
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        tokenSource: "unavailable",
+      },
+    };
   }
 }

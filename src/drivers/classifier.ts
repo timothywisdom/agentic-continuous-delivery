@@ -1,4 +1,5 @@
 import { extractJson } from "../util/json.js";
+import { parseUsageFromUnknown } from "../telemetry/usage.js";
 import { gateDecisionSchema } from "../schemas/zod.js";
 import type { HarnessDriver, HarnessRunRequest, HarnessRunResult } from "./types.js";
 
@@ -43,6 +44,10 @@ export class ClassifierDriver implements HarnessDriver {
     const payload = parsed.success
       ? parsed.data
       : extractJson(JSON.stringify(json));
-    return { text: JSON.stringify(payload), json: payload };
+    return {
+      text: JSON.stringify(payload),
+      json: payload,
+      usage: parseUsageFromUnknown(json),
+    };
   }
 }

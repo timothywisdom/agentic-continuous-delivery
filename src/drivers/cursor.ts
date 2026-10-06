@@ -1,5 +1,9 @@
 import { createRequire } from "node:module";
 import { extractJson } from "../util/json.js";
+import {
+  estimateTokensFromText,
+  parseUsageFromUnknown,
+} from "../telemetry/usage.js";
 import type { HarnessDriver, HarnessRunRequest, HarnessRunResult } from "./types.js";
 
 /** Resolve @cursor/sdk from this package (acd-kit), not the consumer's cwd. */
@@ -27,7 +31,11 @@ export class CursorDriver implements HarnessDriver {
         { timeout: 120_000, maxBuffer: 2_000_000 },
       );
       const text = String(stdout);
-      return { text, json: extractJson(text) };
+      return {
+        text,
+        json: extractJson(text),
+        usage: estimateTokensFromText(prompt, text),
+      };
     } catch (err) {
       const cliErr = (err as Error).message;
       throw new Error(
@@ -86,7 +94,15 @@ async function tryCursorSdk(
       model: { id: modelId },
     });
     const text = String(result.result ?? "");
-    return { ok: true, result: { text, json: extractJson(text) } };
+    return {
+      ok: true,
+      result: {
+        text,
+        json: extractJson(text),
+        usage:
+          parseUsageFromUnknown(result) ?? estimateTokensFromText(prompt, text),
+      },
+    };
   } catch (err) {
     return {
       ok: false,

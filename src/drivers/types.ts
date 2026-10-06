@@ -1,4 +1,5 @@
 import type { AgentRole, DriverKind, ModelTier } from "../types/config.js";
+import type { TokenUsage } from "../telemetry/usage.js";
 
 export interface HarnessRunRequest {
   role: AgentRole;
@@ -18,6 +19,7 @@ export interface HarnessRunRequest {
 export interface HarnessRunResult {
   text: string;
   json?: unknown;
+  usage?: TokenUsage;
 }
 
 export interface HarnessDriver {

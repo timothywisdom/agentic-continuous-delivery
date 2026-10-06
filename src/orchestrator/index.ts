@@ -17,6 +17,11 @@ import {
 import { NeedsGuidanceError } from "./guidance.js";
 import { readState, resolveWorkId, writeState } from "../work/store.js";
 import { logProgress } from "../util/log.js";
+import {
+  decisionFromStageResult,
+  noteValue,
+  withSpan,
+} from "../telemetry/index.js";
 
 export interface StageDef<I, O> {
   name: StageName;
@@ -59,6 +64,37 @@ export async function runStage<I, O>(
       ? explicitWorkId ?? "pending-intake"
       : explicitWorkId ?? resolveWorkId(ctx.repoRoot, ctx.overrides.workId);
 
+  return withSpan(
+    `acd.stage.${def.name}`,
+    {
+      "acd.stage": def.name,
+      "acd.work_id": workId,
+    },
+    async (span) => {
+      const result = await runStageInner(def, rawInput, ctx, workId);
+      const resolvedId =
+        result.state.id && result.state.id !== "pending"
+          ? result.state.id
+          : workId;
+      span.setAttribute("acd.work_id", resolvedId);
+      noteValue(decisionFromStageResult(def.name, result), {
+        ...(result.output && typeof result.output === "object"
+          ? (result.output as Record<string, unknown>)
+          : { value: result.output }),
+        awaitingApproval: result.awaitingApproval,
+        awaitingGuidance: result.awaitingGuidance,
+      }, span);
+      return result;
+    },
+  );
+}
+
+async function runStageInner<I, O>(
+  def: StageDef<I, O>,
+  rawInput: unknown,
+  ctx: Omit<StageContext, "state"> & { workId?: string },
+  workId: string,
+): Promise<RunStageResult<O>> {
   let state =
     def.name === "intake"
       ? placeholderIntakeState(typeof rawInput === "object" && rawInput && "sourceText" in rawInput

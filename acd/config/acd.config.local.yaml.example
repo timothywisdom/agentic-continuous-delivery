@@ -11,6 +11,11 @@
 #   CURSOR_API_KEY / ANTHROPIC_API_KEY / CLASSIFIER_API_KEY
 # Non-secret URLs belong in YAML under classifiers.*.baseUrl (or harnesses.*).
 # Optional: CLASSIFIER_BASE_URL in .env.local overrides YAML baseUrl.
+#
+# OpenTelemetry: set OTEL_EXPORTER_OTLP_ENDPOINT (see README) or:
+# telemetry:
+#   enabled: true
+#   otlpEndpoint: http://127.0.0.1:4318
 # =============================================================================
 
 # --- Example: Cursor for generative agents; classify still uses classifiers.jev ---

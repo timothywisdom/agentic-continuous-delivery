@@ -46,6 +46,23 @@ export const classifierConfigSchema = z.object({
   baseUrl: z.string().optional(),
 });
 
+export const telemetryConfigSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    otlpEndpoint: z.string().optional(),
+    serviceName: z.string().optional(),
+    pricing: z
+      .record(
+        z.string(),
+        z.object({
+          inputPerMillion: z.number().nonnegative(),
+          outputPerMillion: z.number().nonnegative(),
+        }),
+      )
+      .optional(),
+  })
+  .optional();
+
 export const acdConfigSchema = z.object({
   defaults: z.object({
     harness: z.string(),
@@ -56,6 +73,7 @@ export const acdConfigSchema = z.object({
   agents: z.record(agentRoleSchema, agentConfigSchema).default({}),
   harnesses: z.record(z.string(), harnessConfigSchema),
   classifiers: z.record(z.string(), classifierConfigSchema).default({}),
+  telemetry: telemetryConfigSchema,
   repo: z
     .object({
       testCommand: z.string().optional(),

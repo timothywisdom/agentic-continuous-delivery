@@ -157,6 +157,14 @@ export function describeConfig(
       ]),
     ),
     classifiers: config.classifiers,
+    telemetry: {
+      enabled: config.telemetry?.enabled ?? false,
+      otlpEndpoint:
+        process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
+        config.telemetry?.otlpEndpoint ??
+        null,
+      serviceName: config.telemetry?.serviceName ?? "acd-kit",
+    },
     repo: config.repo ?? {},
   };
 }

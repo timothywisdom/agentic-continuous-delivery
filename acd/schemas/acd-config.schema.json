@@ -42,6 +42,26 @@
       "type": "object",
       "additionalProperties": true
     },
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "otlpEndpoint": {
+          "type": "string"
+        },
+        "serviceName": {
+          "type": "string"
+        },
+        "pricing": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
     "repo": {
       "type": "object",
       "properties": {

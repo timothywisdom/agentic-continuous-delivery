@@ -237,18 +237,20 @@ describe("config", () => {
   });
 
   it("hitl all stamps every stage", () => {
+    const base = loadDefaultConfig();
     const config = applyHitlPreset({
-      ...loadDefaultConfig(),
-      defaults: { harness: "stub", hitl: "all" },
+      ...base,
+      defaults: { ...base.defaults, hitl: "all" },
     });
     expect(stageRequiresHumanApproval(config, "intake")).toBe(true);
     expect(stageRequiresHumanApproval(config, "implement")).toBe(true);
   });
 
   it("hitl none stamps every stage false", () => {
+    const base = loadDefaultConfig();
     const config = applyHitlPreset({
-      ...loadDefaultConfig(),
-      defaults: { harness: "stub", hitl: "none" },
+      ...base,
+      defaults: { ...base.defaults, hitl: "none" },
     });
     expect(stageRequiresHumanApproval(config, "specify")).toBe(false);
     expect(stageRequiresHumanApproval(config, "pr")).toBe(false);
@@ -309,16 +311,17 @@ describe("intake and specify (stub harness)", () => {
       { sourceText: "Add rate limiting to search" },
       { repoRoot, config, overrides: {} },
     );
-    expect(intakeResult.output.workId).toBeTruthy();
+    expect(intakeResult.output?.workId).toBeTruthy();
     expect(intakeResult.awaitingApproval).toBe(false);
+    const workId = intakeResult.output!.workId;
 
     const spec = await runStage(
       specifyStage,
-      { workId: intakeResult.output.workId, artifact: "all" },
-      { repoRoot, config, overrides: {}, workId: intakeResult.output.workId },
+      { workId, artifact: "all" },
+      { repoRoot, config, overrides: {}, workId },
     );
     expect(spec.awaitingApproval).toBe(true);
-    const state = readState(repoRoot, intakeResult.output.workId);
+    const state = readState(repoRoot, workId);
     expect(state.awaitingApproval).toBe("specify");
     expect(spec.output!.scenarioCount).toBeGreaterThan(0);
   });
@@ -500,6 +503,9 @@ describe("work artifacts", () => {
     expect(() => saveWorkArtifact(repoRoot, "w1", "state.json", "{}")).toThrow(
       /Invalid artifact name/,
     );
+    expect(() =>
+      saveWorkArtifact(repoRoot, "w1", "telemetry.jsonl", "{}"),
+    ).toThrow(/Invalid artifact name/);
   });
 });
 

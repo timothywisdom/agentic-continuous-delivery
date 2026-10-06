@@ -32,6 +32,36 @@ defaults:
   max_repair_loops: 3
 
 # -----------------------------------------------------------------------------
+# telemetry — OpenTelemetry traces for each CLI command, stage, and harness call
+# -----------------------------------------------------------------------------
+# Disabled unless you set an OTLP endpoint (env wins over YAML).
+# See README "OpenTelemetry".
+telemetry:
+  enabled: false
+  serviceName: acd-kit
+  # otlpEndpoint: http://127.0.0.1:4318
+  # USD per 1M tokens. Keys match a model id prefix (longest match wins).
+  pricing:
+    default:
+      inputPerMillion: 3
+      outputPerMillion: 15
+    claude-haiku:
+      inputPerMillion: 1
+      outputPerMillion: 5
+    claude-sonnet:
+      inputPerMillion: 3
+      outputPerMillion: 15
+    claude-opus:
+      inputPerMillion: 15
+      outputPerMillion: 75
+    composer:
+      inputPerMillion: 1.25
+      outputPerMillion: 6
+    grok:
+      inputPerMillion: 0.2
+      outputPerMillion: 1.5
+
+# -----------------------------------------------------------------------------
 # stages — pipeline steps (a la carte: `acd <stage>`)
 # -----------------------------------------------------------------------------
 # Each stage may set:

@@ -202,8 +202,17 @@ button {
 
 .main {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 460px minmax(0, 1fr);
   gap: 16px;
+  align-items: start;
+  min-height: 0;
+}
+
+.main-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -219,7 +228,39 @@ button {
   border-radius: 10px;
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  min-height: 0;
+}
+
+.drive-panel {
+  overflow: visible;
+}
+
+.drive-panel .panel-body {
+  overflow: visible;
+}
+
+.drive-panel select,
+.drive-panel input,
+.drive-panel textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.log-panel {
+  height: 280px;
+  min-height: 120px;
+  max-height: 80vh;
+  resize: vertical;
+  overflow: hidden;
+}
+
+.tel-panel {
+  height: 200px;
+  min-height: 120px;
+  max-height: 80vh;
+  resize: vertical;
+  overflow: hidden;
 }
 
 .panel h2 {
@@ -297,14 +338,13 @@ textarea {
   font-family: "IBM Plex Mono", "ui-monospace", monospace;
   font-size: 12px;
   line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre;
   background: #0a0d11;
   border-radius: 0 0 10px 10px;
   padding: 12px 14px;
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  min-height: 240px;
 }
 
 .log .stderr {
@@ -558,4 +598,99 @@ textarea {
 .error-line {
   color: var(--err);
   font-size: 12px;
+}
+
+.tel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  gap: 8px;
+}
+
+.tel-totals {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tel-empty {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tel-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tel-node {
+  border-top: 1px solid var(--line);
+}
+
+.tel-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 110px) 1fr auto auto;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 7px 8px;
+  align-items: center;
+}
+
+.tel-row:hover {
+  background: var(--bg-elev-2);
+}
+
+.tel-name {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.tel-node.harness .tel-name {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tel-node.error .tel-name {
+  color: var(--err);
+}
+
+.tel-decision {
+  color: var(--text);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tel-dur,
+.tel-cost {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tel-cost {
+  color: var(--accent);
+}
+
+.tel-json {
+  margin: 0 8px 8px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 11px;
+  overflow: auto;
+  max-height: 220px;
+  color: #c9d1d9;
 }
