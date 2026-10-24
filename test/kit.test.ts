@@ -39,6 +39,7 @@ import {
 } from "../src/spec/gherkin.js";
 import { intakeStage } from "../src/stages/intake.js";
 import { implementStage } from "../src/stages/implement.js";
+import { reviewStage } from "../src/stages/review.js";
 import { specifyStage } from "../src/stages/specify.js";
 
 function blankState(over: Partial<WorkState> = {}): WorkState {
@@ -103,9 +104,9 @@ describe("gherkin", () => {
     expect(
       selectImplementScenarios(scenarios, undefined, 1).map((s) => s.index),
     ).toEqual([2, 3]);
-    expect(selectImplementScenarios(scenarios, 2, 1).map((s) => s.index)).toEqual(
-      [2],
-    );
+    expect(
+      selectImplementScenarios(scenarios, 2, 1).map((s) => s.index),
+    ).toEqual([2]);
     expect(() => selectImplementScenarios(scenarios, undefined, 3)).toThrow(
       /already implemented/,
     );
@@ -408,7 +409,7 @@ describe("intake and specify (stub harness)", () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "acd-impl-"));
     writeFileSync(
       join(repoRoot, "acd.config.yaml"),
-      `defaults:\n  harness: stub\n  hitl: none\nstages:\n  specify:\n    harness: stub\n  implement:\n    harness: stub\nharnesses:\n  stub:\n    driver: stub\n    models:\n      classify: stub-classify\n      low: stub-low\n      med: stub-med\n      high: stub-high\nclassifiers:\n  stub-classify:\n    driver: stub\nrepo:\n  testCommand: ""\n`,
+      `defaults:\n  harness: stub\n  hitl: none\nstages:\n  specify:\n    harness: stub\n  implement:\n    harness: stub\nharnesses:\n  stub:\n    driver: stub\n    models:\n      classify: stub-classify\n      low: stub-low\n      med: stub-med\n      high: stub-high\nclassifiers:\n  stub-classify:\n    driver: stub\nrepo:\n  testCommand: ""\n  lintCommand: ""\n`,
     );
     const { applyCliOverrides, loadRepoConfig } =
       await import("../src/config/load.js");
@@ -454,6 +455,25 @@ describe("intake and specify (stub harness)", () => {
         { repoRoot, config, overrides: {}, workId },
       ),
     ).rejects.toThrow(/already implemented/);
+
+    const review1 = await runStage(
+      reviewStage,
+      { workId },
+      { repoRoot, config, overrides: {}, workId },
+    );
+    expect(review1.output?.decision).toBe("pass");
+    expect(review1.output?.delta?.cycle).toBe(1);
+    expect(review1.output?.delta?.summary.totalCurrent).toBe(0);
+
+    const review2 = await runStage(
+      reviewStage,
+      { workId },
+      { repoRoot, config, overrides: {}, workId },
+    );
+    expect(review2.output?.decision).toBe("pass");
+    expect(review2.output?.delta?.cycle).toBe(2);
+    expect(review2.output?.delta?.summary.resolvedCount).toBe(0);
+    expect(review2.output?.delta?.summary.persistentCount).toBe(0);
   });
 });
 

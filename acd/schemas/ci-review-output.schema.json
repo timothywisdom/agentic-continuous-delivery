@@ -58,6 +58,188 @@
     },
     "testsOk": {
       "type": "boolean"
+    },
+    "delta": {
+      "type": "object",
+      "properties": {
+        "cycle": {
+          "type": "number"
+        },
+        "resolved": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agent": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string"
+              },
+              "line": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issue": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "block"
+                ]
+              }
+            },
+            "required": [
+              "agent",
+              "file",
+              "line",
+              "issue",
+              "why",
+              "decision"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "persistent": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agent": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string"
+              },
+              "line": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issue": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "block"
+                ]
+              }
+            },
+            "required": [
+              "agent",
+              "file",
+              "line",
+              "issue",
+              "why",
+              "decision"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "new": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agent": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string"
+              },
+              "line": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issue": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "block"
+                ]
+              }
+            },
+            "required": [
+              "agent",
+              "file",
+              "line",
+              "issue",
+              "why",
+              "decision"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "resolvedCount": {
+              "type": "number"
+            },
+            "persistentCount": {
+              "type": "number"
+            },
+            "newCount": {
+              "type": "number"
+            },
+            "totalCurrent": {
+              "type": "number"
+            },
+            "totalPrevious": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "resolvedCount",
+            "persistentCount",
+            "newCount",
+            "totalCurrent",
+            "totalPrevious"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "cycle",
+        "resolved",
+        "persistent",
+        "new",
+        "summary"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

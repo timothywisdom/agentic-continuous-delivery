@@ -96,5 +96,29 @@ export function typedSpanAttributes(
   if (typeof o.testsOk === "boolean") attrs["acd.tests_ok"] = o.testsOk;
   if (typeof o.workId === "string") attrs["acd.work_id"] = o.workId;
   if (typeof o.tooLarge === "boolean") attrs["acd.spec_too_large"] = o.tooLarge;
+  if (o.delta && typeof o.delta === "object") {
+    const d = o.delta as Record<string, unknown>;
+    if (typeof d.cycle === "number") {
+      attrs["acd.review.cycle"] = d.cycle;
+    }
+    const s = d.summary as Record<string, number> | undefined;
+    if (s) {
+      if (typeof s.resolvedCount === "number") {
+        attrs["acd.review.findings.resolved"] = s.resolvedCount;
+      }
+      if (typeof s.persistentCount === "number") {
+        attrs["acd.review.findings.persistent"] = s.persistentCount;
+      }
+      if (typeof s.newCount === "number") {
+        attrs["acd.review.findings.new"] = s.newCount;
+      }
+      if (typeof s.totalCurrent === "number") {
+        attrs["acd.review.findings.total_current"] = s.totalCurrent;
+      }
+      if (typeof s.totalPrevious === "number") {
+        attrs["acd.review.findings.total_previous"] = s.totalPrevious;
+      }
+    }
+  }
   return attrs;
 }

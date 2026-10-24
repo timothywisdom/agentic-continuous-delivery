@@ -25,11 +25,13 @@ export const ciReviewStage: StageDef<CiReviewInput, CiReviewOutput> = {
     emit(ctx.repoRoot, workId, "ci_review.complete", "ci_review", {
       decision,
       testsOk: tests.ok,
+      delta: review.delta,
     });
     return {
       decision,
       findings: review.findings,
       testsOk: tests.ok,
+      delta: review.delta,
     };
   },
 };

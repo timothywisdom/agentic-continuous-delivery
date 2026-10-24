@@ -95,6 +95,22 @@ export interface ReviewFinding {
   decision: "pass" | "block";
 }
 
+export interface ReviewDeltaSummary {
+  resolvedCount: number;
+  persistentCount: number;
+  newCount: number;
+  totalCurrent: number;
+  totalPrevious: number;
+}
+
+export interface ReviewDelta {
+  cycle: number;
+  resolved: ReviewFinding[];
+  persistent: ReviewFinding[];
+  new: ReviewFinding[];
+  summary: ReviewDeltaSummary;
+}
+
 export interface ReviewInput {
   workId: string;
   diff?: string;
@@ -105,6 +121,7 @@ export interface ReviewOutput {
   decision: "pass" | "block";
   findings: ReviewFinding[];
   mechanical: { name: string; ok: boolean; detail?: string }[];
+  delta?: ReviewDelta;
 }
 
 export interface PrInput {
@@ -129,6 +146,7 @@ export interface CiReviewOutput {
   decision: "pass" | "block";
   findings: ReviewFinding[];
   testsOk: boolean;
+  delta?: ReviewDelta;
 }
 
 export interface FixInput {

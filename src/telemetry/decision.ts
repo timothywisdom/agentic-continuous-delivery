@@ -47,6 +47,18 @@ export function decisionFromOutput(stage: string, output: unknown): string {
     case "ci_review": {
       const decision = String(o.decision ?? "unknown");
       const n = Array.isArray(o.findings) ? o.findings.length : 0;
+      if (o.delta && typeof o.delta === "object") {
+        const d = o.delta as Record<string, unknown>;
+        const s = d.summary as Record<string, number> | undefined;
+        if (s && typeof d.cycle === "number" && d.cycle > 1) {
+          const parts: string[] = [];
+          if (s.resolvedCount > 0) parts.push(`${s.resolvedCount} resolved`);
+          if (s.persistentCount > 0) parts.push(`${s.persistentCount} persistent`);
+          if (s.newCount > 0) parts.push(`${s.newCount} new`);
+          const deltaDesc = parts.length > 0 ? parts.join(", ") : "no changes";
+          return `${decision} (cycle ${d.cycle}: ${n} findings; ${deltaDesc})`;
+        }
+      }
       return n > 0 ? `${decision} (${n} findings)` : decision;
     }
     case "fix":

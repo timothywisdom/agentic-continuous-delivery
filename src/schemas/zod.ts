@@ -187,6 +187,22 @@ export const reviewInputSchema = z.object({
   diff: z.string().optional(),
 });
 
+export const reviewDeltaSummarySchema = z.object({
+  resolvedCount: z.number().int().nonnegative(),
+  persistentCount: z.number().int().nonnegative(),
+  newCount: z.number().int().nonnegative(),
+  totalCurrent: z.number().int().nonnegative(),
+  totalPrevious: z.number().int().nonnegative(),
+});
+
+export const reviewDeltaSchema = z.object({
+  cycle: z.number().int().positive(),
+  resolved: z.array(reviewFindingSchema),
+  persistent: z.array(reviewFindingSchema),
+  new: z.array(reviewFindingSchema),
+  summary: reviewDeltaSummarySchema,
+});
+
 export const reviewOutputSchema = z.object({
   workId: z.string(),
   decision: z.enum(["pass", "block"]),
@@ -198,6 +214,7 @@ export const reviewOutputSchema = z.object({
       detail: z.string().optional(),
     }),
   ),
+  delta: reviewDeltaSchema.optional(),
 });
 
 export const prInputSchema = z.object({
@@ -222,6 +239,7 @@ export const ciReviewOutputSchema = z.object({
   decision: z.enum(["pass", "block"]),
   findings: z.array(reviewFindingSchema),
   testsOk: z.boolean(),
+  delta: reviewDeltaSchema.optional(),
 });
 
 export const fixInputSchema = z.object({

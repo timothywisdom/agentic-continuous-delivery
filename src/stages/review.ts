@@ -5,9 +5,15 @@ import type { StageDef } from "../orchestrator/index.js";
 import { gitDiff, runMechanicalHooks } from "../hooks/mechanical.js";
 import { reviewInputSchema, reviewOutputSchema } from "../schemas/zod.js";
 import type { AgentRole } from "../types/config.js";
-import type { ReviewFinding, ReviewInput, ReviewOutput } from "../types/work.js";
+import type {
+  ReviewFinding,
+  ReviewInput,
+  ReviewOutput,
+} from "../types/work.js";
 import { emit } from "../work/events.js";
-import { readArtifact } from "../work/store.js";
+import { readArtifact, readEvents } from "../work/store.js";
+import { computeReviewDelta } from "./review-delta.js";
+import { logProgress } from "../util/log.js";
 
 const reviewAgentSchema = z.object({
   decision: z.enum(["pass", "block"]),
@@ -24,9 +30,21 @@ const reviewAgentSchema = z.object({
 const REVIEW_FANOUT: { role: AgentRole; skill: string; agent: string }[] = [
   { role: "semantic_review", skill: "review-semantic", agent: "semantic" },
   { role: "security_review", skill: "review-security", agent: "security" },
-  { role: "performance_review", skill: "review-performance", agent: "performance" },
-  { role: "concurrency_review", skill: "review-concurrency", agent: "concurrency" },
-  { role: "test_fidelity", skill: "review-test-fidelity", agent: "test_fidelity" },
+  {
+    role: "performance_review",
+    skill: "review-performance",
+    agent: "performance",
+  },
+  {
+    role: "concurrency_review",
+    skill: "review-concurrency",
+    agent: "concurrency",
+  },
+  {
+    role: "test_fidelity",
+    skill: "review-test-fidelity",
+    agent: "test_fidelity",
+  },
   {
     role: "implementation_coupling",
     skill: "review-implementation-coupling",
@@ -37,7 +55,11 @@ const REVIEW_FANOUT: { role: AgentRole; skill: string; agent: string }[] = [
     skill: "review-architecture",
     agent: "architectural_conformance",
   },
-  { role: "intent_alignment", skill: "review-intent", agent: "intent_alignment" },
+  {
+    role: "intent_alignment",
+    skill: "review-intent",
+    agent: "intent_alignment",
+  },
   {
     role: "constraint_compliance",
     skill: "review-constraints",
@@ -62,8 +84,29 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
       "system-constraints.yaml",
     );
 
+    const events = readEvents(ctx.repoRoot, workId);
+    const priorReviewEvents = events.filter(
+      (e) =>
+        (e.type === "review.complete" || e.type === "ci_review.complete") &&
+        e.data,
+    );
+    const priorReviewEvent = priorReviewEvents.at(-1);
+
+    const cycle = priorReviewEvents.length + 1;
+    const previousFindings: ReviewFinding[] = Array.isArray(
+      priorReviewEvent?.data?.findings,
+    )
+      ? (priorReviewEvent?.data?.findings as ReviewFinding[])
+      : ctx.state.currentStage === "review" &&
+          Array.isArray(ctx.state.lastStageOutput?.findings)
+        ? (ctx.state.lastStageOutput?.findings as ReviewFinding[])
+        : [];
+
     const payloads = await Promise.all(
       REVIEW_FANOUT.map(async (item) => {
+        const agentPriorFindings = previousFindings.filter(
+          (f) => f.agent === item.agent,
+        );
         const json = await runGenerativeRole(
           ctx.config,
           "review",
@@ -75,6 +118,7 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
             behavior,
             feature,
             constraints,
+            previousFindings: agentPriorFindings,
           },
           ctx.overrides,
         );
@@ -107,6 +151,14 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
       }
     }
 
+    const delta = computeReviewDelta(previousFindings, findings, cycle);
+    if (cycle > 1) {
+      logProgress(
+        `review: cycle ${cycle} delta — ${delta.summary.resolvedCount} resolved, ` +
+          `${delta.summary.persistentCount} persistent, ${delta.summary.newCount} new`,
+      );
+    }
+
     const mechanicalBlock = mechanical.some((m) => !m.ok);
     let decision: "pass" | "block" =
       mechanicalBlock || findings.some((f) => f.decision === "block")
@@ -125,8 +177,10 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
     emit(ctx.repoRoot, workId, "review.complete", "review", {
       decision,
       findingCount: findings.length,
+      findings,
+      delta,
     });
 
-    return { workId, decision, findings, mechanical };
+    return { workId, decision, findings, mechanical, delta };
   },
 };

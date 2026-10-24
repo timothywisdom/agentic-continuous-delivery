@@ -55,7 +55,11 @@ export function runTests(
 ): MechanicalResult {
   const cmd = config.repo?.testCommand;
   if (!cmd) {
-    return { name: "test", ok: true, detail: "No testCommand configured; skipped." };
+    return {
+      name: "test",
+      ok: true,
+      detail: "No testCommand configured; skipped.",
+    };
   }
   const ran = runCommand(cmd, repoRoot);
   return { name: "test", ok: ran.ok, detail: ran.detail };
@@ -67,10 +71,6 @@ export function gitDiff(repoRoot: string): string {
       cwd: repoRoot,
       stdio: "pipe",
     });
-  } catch {
-    return "";
-  }
-  try {
     const staged = execSync("git diff --cached", {
       cwd: repoRoot,
       encoding: "utf8",
@@ -81,7 +81,22 @@ export function gitDiff(repoRoot: string): string {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
-    return `${staged}\n${unstaged}`;
+    const working = `${staged}\n${unstaged}`.trim();
+    if (working) return working;
+
+    for (const base of ["origin/main", "main", "origin/master", "master"]) {
+      try {
+        const branchDiff = execSync(`git diff ${base}...HEAD`, {
+          cwd: repoRoot,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        }).trim();
+        if (branchDiff) return branchDiff;
+      } catch {
+        // base ref does not exist or diff failed; try next
+      }
+    }
+    return "";
   } catch {
     return "";
   }

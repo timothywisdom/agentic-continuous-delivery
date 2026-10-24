@@ -44,8 +44,21 @@ function stubPayload(request: HarnessRunRequest): unknown {
     case "implementation_coupling":
     case "architectural_conformance":
     case "intent_alignment":
-    case "constraint_compliance":
+    case "constraint_compliance": {
+      if (process.env.ACD_STUB_REVIEW_PAYLOAD) {
+        try {
+          const custom = JSON.parse(process.env.ACD_STUB_REVIEW_PAYLOAD) as Record<
+            string,
+            unknown
+          >;
+          if (custom[role]) return custom[role];
+          if (custom.default) return custom.default;
+        } catch {
+          // fallback to default pass
+        }
+      }
       return { decision: "pass", findings: [] };
+    }
     default:
       return { decision: "pass", findings: [] };
   }
