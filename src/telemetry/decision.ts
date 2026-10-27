@@ -113,6 +113,15 @@ export function decisionFromCommand(
       return Array.isArray(o.artifacts)
         ? `${o.artifacts.length} artifacts`
         : "listed artifacts";
+    case "reviews": {
+      const n = typeof o.reviewCount === "number" ? o.reviewCount : 0;
+      if (n === 0) return "no reviews";
+      const decision =
+        typeof o.latestDecision === "string" ? o.latestDecision : "unknown";
+      const findings =
+        typeof o.latestFindings === "number" ? o.latestFindings : 0;
+      return `${n} review${n === 1 ? "" : "s"}; latest ${decision} (${findings} findings)`;
+    }
     default:
       return decisionFromOutput(cmd, payload);
   }

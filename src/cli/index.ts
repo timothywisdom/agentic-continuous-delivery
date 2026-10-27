@@ -21,6 +21,7 @@ import type { Span } from "@opentelemetry/api";
 import type { AcdConfig, CliOverrides } from "../types/config.js";
 import { isStageName, STAGE_NAMES, V1_STUBS, type StageName } from "../types/stages.js";
 import { runTests } from "../hooks/mechanical.js";
+import { listReviewRuns } from "../work/reviews.js";
 import { listArtifacts, listWorkIds, readEvents, readState, resolveWorkId, saveWorkArtifact } from "../work/store.js";
 import { emit } from "../work/events.js";
 import { readFileSync } from "node:fs";
@@ -54,6 +55,7 @@ Usage:
   acd status [work-id]
   acd list
   acd artifacts [work-id]
+  acd reviews [work-id]
   acd artifact-save <name> [--work-id <id>] [--contents "..."]
   acd ui [--port N] [--repo-root <path>]
   acd deploy|canary|rollback|hypothesis   (stubs)
@@ -418,6 +420,28 @@ async function dispatchCommand(
       artifacts: listArtifacts(repoRoot, workId),
     };
     noteValue(decisionFromCommand("artifacts", payload), payload, span);
+    printJson(payload);
+    return;
+  }
+
+  if (cmd === "reviews") {
+    const workId = resolveWorkId(repoRoot, args[0] ?? overrides.workId);
+    const reviews = listReviewRuns(readEvents(repoRoot, workId));
+    const latest = reviews.at(-1);
+    const payload = { workId, reviews };
+    noteValue(
+      decisionFromCommand("reviews", {
+        reviewCount: reviews.length,
+        latestDecision: latest?.decision ?? null,
+        latestFindings: latest?.findings.length ?? 0,
+      }),
+      {
+        reviewCount: reviews.length,
+        latestDecision: latest?.decision ?? null,
+        latestFindings: latest?.findings.length ?? 0,
+      },
+      span,
+    );
     printJson(payload);
     return;
   }

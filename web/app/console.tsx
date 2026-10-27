@@ -10,7 +10,9 @@ import {
   stageGraphNodes,
 } from "../../dist/ui/cli-args.js";
 import { ArtifactPane, type Artifact } from "./artifact-pane";
+import { ReviewPane } from "./review-pane";
 import { TelemetryPane } from "./telemetry-pane";
+import type { ReviewRun } from "../../dist/work/reviews.js";
 import type { TelemetrySpanRecord } from "../../dist/telemetry/record.js";
 
 type WorkState = {
@@ -80,6 +82,8 @@ export function Console() {
   const [workId, setWorkId] = useState<string>("");
   const [state, setState] = useState<WorkState | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [reviews, setReviews] = useState<ReviewRun[]>([]);
+  const [libraryTab, setLibraryTab] = useState<"artifacts" | "reviews">("artifacts");
   const [command, setCommand] = useState<Command>("status");
   const [fromText, setFromText] = useState("");
   const [artifact, setArtifact] = useState("all");
@@ -121,6 +125,7 @@ export function Console() {
       if (!selected) {
         setState(null);
         setArtifacts([]);
+        setReviews([]);
         return;
       }
       const statusJson = await runAndParse(
@@ -136,6 +141,12 @@ export function Console() {
         silentLog,
       );
       setArtifacts((artJson as { artifacts?: Artifact[] }).artifacts ?? []);
+      const reviewJson = await runAndParse(
+        token,
+        { command: "reviews", args: [selected] },
+        silentLog,
+      );
+      setReviews((reviewJson as { reviews?: ReviewRun[] }).reviews ?? []);
     } catch (err) {
       setRunError(err instanceof Error ? err.message : String(err));
     }
@@ -198,6 +209,7 @@ export function Console() {
       setWorkId("");
       setState(null);
       setArtifacts([]);
+      setReviews([]);
       setWorkIds([]);
       await snapshot("");
     } catch (err) {
@@ -421,10 +433,34 @@ export function Console() {
         </div>
       </div>
 
-      <section className="panel">
-        <h2>Artifacts</h2>
+      <section className="panel library-panel">
+        <div className="library-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={libraryTab === "artifacts"}
+            className={libraryTab === "artifacts" ? "on" : ""}
+            onClick={() => setLibraryTab("artifacts")}
+          >
+            Artifacts
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={libraryTab === "reviews"}
+            className={libraryTab === "reviews" ? "on" : ""}
+            onClick={() => setLibraryTab("reviews")}
+          >
+            Reviews
+            {(reviews.at(-1)?.findings.length ?? 0) > 0 ? (
+              <span className="tab-count">{reviews.at(-1)?.findings.length}</span>
+            ) : null}
+          </button>
+        </div>
         <div className="panel-body artifacts">
-          {artifacts.length === 0 ? (
+          {libraryTab === "reviews" ? (
+            <ReviewPane reviews={reviews} repo={repo} />
+          ) : artifacts.length === 0 ? (
             <span className="banner">No artifacts yet.</span>
           ) : (
             artifacts.map((a) => (
