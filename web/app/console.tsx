@@ -2,14 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CSRF_HEADER } from "../../dist/ui/security.js";
-import {
-  graphNodeEmphasis,
-  isStageName,
-  nextPipelineStage,
-  stageGraphEdges,
-  stageGraphNodes,
-} from "../../dist/ui/cli-args.js";
+import { isStageName, nextPipelineStage } from "../../dist/ui/cli-args.js";
 import { ArtifactPane, type Artifact } from "./artifact-pane";
+import { CycleGraph } from "./cycle-graph";
 import { ReviewPane } from "./review-pane";
 import { TelemetryPane } from "./telemetry-pane";
 import type { ReviewRun } from "../../dist/work/reviews.js";
@@ -36,6 +31,10 @@ const COMMANDS = [
   "revise",
   "pr",
   "ci-review",
+  "deploy",
+  "canary",
+  "rollback",
+  "hypothesis",
   "fix",
   "approve",
   "reject",
@@ -48,31 +47,6 @@ const COMMANDS = [
 ] as const;
 
 type Command = (typeof COMMANDS)[number];
-
-const NODE_POS: Record<string, { x: number; y: number }> = {
-  intake: { x: 16, y: 28 },
-  specify: { x: 168, y: 28 },
-  implement: { x: 320, y: 28 },
-  review: { x: 472, y: 28 },
-  pr: { x: 624, y: 28 },
-  ci_review: { x: 776, y: 28 },
-  fix: { x: 320, y: 108 },
-  deploy: { x: 776, y: 108 },
-  canary: { x: 888, y: 108 },
-  rollback: { x: 1000, y: 108 },
-  hypothesis: { x: 888, y: 168 },
-};
-
-function nodeClass(id: string, state: WorkState | null): string {
-  const kind = id === "fix" ? "fix" : NODE_POS[id] && ["deploy", "canary", "rollback", "hypothesis"].includes(id)
-    ? "stub"
-    : "pipeline";
-  const classes = ["node", kind];
-  if (!state) return classes.join(" ");
-  const emphasis = graphNodeEmphasis(id, state);
-  if (emphasis) classes.push(emphasis);
-  return classes.join(" ");
-}
 
 export function Console() {
   const [token, setToken] = useState<string | null>(null);
@@ -277,11 +251,22 @@ export function Console() {
       </header>
 
       <section className="graph-wrap">
-        <Graph state={state} onSelect={(id) => setCommand(graphCommand(id))} />
+        <CycleGraph
+          state={state}
+          selected={command}
+          selectedStage={stageArg}
+          onPick={(pick) => {
+            if (COMMANDS.includes(pick.command as Command)) {
+              setCommand(pick.command as Command);
+            }
+            if (pick.stage) setStageArg(pick.stage);
+          }}
+        />
         <div className="legend">
           <span className="l-done">completed</span>
           <span className="l-now">current</span>
           <span className="l-wait">awaiting human</span>
+          <span className="l-return">return</span>
           <span className="l-stub">v1 stub</span>
         </div>
       </section>
@@ -508,60 +493,6 @@ export function Console() {
       </section>
     </div>
   );
-}
-
-function Graph({
-  state,
-  onSelect,
-}: {
-  state: WorkState | null;
-  onSelect: (id: string) => void;
-}) {
-  const nodes = stageGraphNodes();
-  const edges = stageGraphEdges();
-  return (
-    <svg className="graph" viewBox="0 0 1120 220" role="img" aria-label="ACD state machine">
-      {edges.map((e) => {
-        const a = NODE_POS[e.from];
-        const b = NODE_POS[e.to];
-        if (!a || !b) return null;
-        return (
-          <line
-            key={`${e.from}-${e.to}`}
-            x1={a.x + 128}
-            y1={a.y + 18}
-            x2={b.x}
-            y2={b.y + 18}
-            stroke="#3d4a58"
-            strokeWidth="1.5"
-          />
-        );
-      })}
-      {nodes.map((n) => {
-        const p = NODE_POS[n.id];
-        if (!p) return null;
-        return (
-          <g
-            key={n.id}
-            className={nodeClass(n.id, state)}
-            transform={`translate(${p.x},${p.y})`}
-            onClick={() => onSelect(n.id)}
-          >
-            <rect width="128" height="36" rx="6" />
-            <text x="64" y="23" textAnchor="middle">
-              {n.id}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function graphCommand(id: string): Command {
-  if (id === "ci_review") return "ci-review";
-  if (COMMANDS.includes(id as Command)) return id as Command;
-  return "status";
 }
 
 function buildBody(opts: {

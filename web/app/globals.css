@@ -114,7 +114,71 @@ button {
 }
 
 .graph {
-  min-width: 980px;
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.edge {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.edge.flow {
+  stroke: #7d8b9c;
+}
+
+.edge.return {
+  stroke: var(--accent);
+  stroke-dasharray: 4 3;
+}
+
+.cycle-note {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.gate {
+  cursor: pointer;
+}
+
+.gate rect {
+  fill: transparent;
+}
+
+.gate text {
+  fill: var(--muted);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.gate.selected text {
+  fill: var(--accent);
+  font-weight: 700;
+}
+
+.chip {
+  cursor: pointer;
+}
+
+.chip rect {
+  fill: var(--bg);
+  stroke: var(--line);
+}
+
+.chip text {
+  fill: var(--muted);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.chip.selected rect {
+  stroke: var(--accent);
+}
+
+.chip.selected text {
+  fill: var(--text);
+  font-weight: 650;
 }
 
 .node {
@@ -168,6 +232,16 @@ button {
   fill: var(--stub);
 }
 
+.node.loop rect {
+  fill: #1a2433;
+  stroke: var(--accent);
+}
+
+.node.selected rect {
+  stroke: var(--text);
+  stroke-width: 2.25;
+}
+
 .legend {
   display: flex;
   gap: 16px;
@@ -195,6 +269,10 @@ button {
 .legend .l-wait::before {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--warn);
+}
+.legend .l-return::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .legend .l-stub::before {
   box-shadow: inset 0 0 0 1px var(--stub);
