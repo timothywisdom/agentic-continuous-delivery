@@ -2,11 +2,23 @@
 
 **Agentic Continuous Delivery (ACD) for your repo, run with** `npx`**.**
 
-ACD is a framework for building software following the practices of continous integration, continuous delivery and TDD/BDD. You choose the agentic harness (eg. Cursor/Claude/etc) and run ACD steps via a CLI or UI.
+ACD is a framework for building software following the practices of continuous integration, continuous delivery and TDD/BDD. You choose the agentic harness (eg. Cursor/Claude/etc) and run ACD steps via a CLI or UI.
 
 The CLI is a **deterministic orchestrator**: typed stages, AI only for generative work, harness/HitL as configuration.
 
 Based on [MinimumCD Agentic CD](https://beyond.minimumcd.org/docs/agentic-cd/).
+
+![ACD console. The delivery cycle from intake through review, and the paths back.](docs/acd-graph-snapshot-oct-27-2026.png)
+
+## Why ACD
+
+Agents are good at drafting and weak at staying inside a delivery process. Left alone, they choose the next step, rewrite the spec to match the code, and soften a test until it passes. ACD keeps that loop in the CLI. The model does the generative work. It does not decide what runs next.
+
+You keep the harness you already use — Cursor, Claude, or the built-in stub. ACD owns the stages: a plain-English intake, a spec with a fixed order of authority, test-first implementation, and a review that returns structured findings. When review blocks, `revise` writes those findings back into the spec and `implement` reruns only the scenarios that need it. A red test suite allows only `fix`. Human approval is configuration, not a reminder you have to put in the prompt.
+
+The picture above is that loop. Solid nodes are commands you can run today. Dashed nodes (`deploy`, `canary`, `rollback`, `hypothesis`) name the rest of the lifecycle; they are stubs in v1. Gold dashed arrows are the ways back: `revise` returns a review into the spec, `fix` restores a red pipeline, and a hypothesis that does not hold starts a new intake.
+
+Authority, which an agent must not invert: intent, then user-facing behavior, then the feature description, then acceptance criteria, then system constraints, then implementation.
 
 ## Empty folder → pipeline + UI
 
@@ -24,7 +36,12 @@ Then start a work item (in another terminal, or from the UI):
 
 ```bash
 npx acd-kit intake --from "Build a calculator web app"
+npx acd-kit specify
+npx acd-kit implement
+npx acd-kit review
 ```
+
+That is the first loop. `specify` drafts the spec. `implement` builds one scenario at a time, test first. `review` checks the result. If review asks for changes, `npx acd-kit revise` folds them into the spec and you run `implement` again. `npx acd-kit approve review` is how a person accepts the review and moves on. In the UI, click a node to select the command, then Run. The same commands run either way.
 
 Default harness is `stub` (no API keys). For Cursor agents, copy `.acd/.env.local.example` → `.acd/.env.local` and set `CURSOR_API_KEY`.
 
