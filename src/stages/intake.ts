@@ -33,6 +33,8 @@ export const intakeStage: StageDef<IntakeInput, IntakeOutput> = {
       awaitingGuidance: null,
       guidanceNote: null,
       currentScenario: null,
+      implementQueue: null,
+      absorbedReviewFindings: [],
       lastError: null,
       lastStageOutput: null,
       approvedStages: [],

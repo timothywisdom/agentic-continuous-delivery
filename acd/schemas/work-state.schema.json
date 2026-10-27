@@ -120,6 +120,46 @@
         }
       ]
     },
+    "implementQueue": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "fidelity"
+                ]
+              },
+              "brief": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "index",
+              "mode",
+              "brief"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "absorbedReviewFindings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "lastError": {
       "anyOf": [
         {

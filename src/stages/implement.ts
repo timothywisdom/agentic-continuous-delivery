@@ -13,7 +13,8 @@ import {
 } from "../spec/gherkin.js";
 import { gitCommit, gitIdentity, runTests } from "../hooks/mechanical.js";
 import { loadTemplate, renderTemplate } from "../kit/files.js";
-import type { ImplementInput, ImplementOutput } from "../types/work.js";
+import { findScenarioTests, runScenarioTests } from "../spec/scenario-tests.js";
+import type { ImplementInput, ImplementJob, ImplementOutput } from "../types/work.js";
 import { logProgress } from "../util/log.js";
 import { emit } from "../work/events.js";
 import {
@@ -23,6 +24,18 @@ import {
   writeArtifact,
   writeState,
 } from "../work/store.js";
+
+const NEW_CRITERIA =
+  "Implement exactly one BDD scenario test-first. Do not implement other scenarios. Return files/tests JSON.";
+const REPAIR_CRITERIA =
+  "The acceptance test for this scenario failed. Change product code so it passes. Do not weaken or delete assertions. Return files/tests JSON.";
+const FIDELITY_CRITERIA =
+  "Rewrite this scenario's acceptance test so it actually performs the Gherkin steps. Do not weaken assertions. Then change product code only as needed to make the stricter test pass. Return files/tests JSON.";
+
+type ScenarioRun = Omit<
+  ImplementOutput,
+  "scenariosCompleted" | "remaining" | "skippedScenarios"
+> & { skipped: boolean };
 
 const implSchema = z.object({
   files: z
@@ -53,25 +66,39 @@ export const implementStage: StageDef<ImplementInput, ImplementOutput> = {
       writeArtifact(ctx.repoRoot, workId, "behavior.feature", numbered);
     }
     const scenarios = parseScenarios(numbered);
+    const jobs = new Map(
+      (ctx.state.implementQueue ?? []).map((job) => [job.index, job]),
+    );
+    const queued =
+      input.scenario == null && ctx.state.implementQueue
+        ? ctx.state.implementQueue.map((job) => job.index)
+        : null;
     const queue = selectImplementScenarios(
       scenarios,
       input.scenario,
       ctx.state.currentScenario,
+      queued,
     );
 
     const completed: number[] = [];
-    let last: Awaited<ReturnType<typeof implementOneScenario>> | undefined;
+    const skippedScenarios: number[] = [];
+    let last: ScenarioRun | undefined;
 
     for (const scenario of queue) {
       logProgress(
         `implement: scenario ${scenario.index}/${scenarios.length} ${scenario.title}`,
       );
-      last = await implementOneScenario(workId, scenario, ctx);
-      if (last.pipelineStatus === "green") {
-        completed.push(scenario.index);
-      } else {
-        break;
-      }
+      const job = jobs.get(scenario.index);
+      last = await implementOneScenario(
+        workId,
+        scenario,
+        ctx,
+        job,
+        input.scenario != null || !job,
+      );
+      if (last.pipelineStatus !== "green") break;
+      completed.push(scenario.index);
+      if (last.skipped) skippedScenarios.push(scenario.index);
     }
 
     if (!last) {
@@ -79,14 +106,15 @@ export const implementStage: StageDef<ImplementInput, ImplementOutput> = {
     }
 
     const state = readState(ctx.repoRoot, workId);
-    const remaining = scenarios.filter(
-      (s) => s.index > (state.currentScenario ?? 0),
-    ).length;
+    const remaining = state.implementQueue
+      ? state.implementQueue.length
+      : scenarios.filter((s) => s.index > (state.currentScenario ?? 0)).length;
 
     return {
       ...last,
       scenariosCompleted: completed,
       remaining,
+      skippedScenarios,
     };
   },
 };
@@ -95,9 +123,45 @@ async function implementOneScenario(
   workId: string,
   scenario: Scenario,
   ctx: StageContext,
-): Promise<Omit<ImplementOutput, "scenariosCompleted" | "remaining">> {
+  job: ImplementJob | undefined,
+  forceAgent: boolean,
+): Promise<ScenarioRun> {
+  let failedDetail = "";
+  if (!forceAgent && job) {
+    const files = findScenarioTests(ctx.repoRoot, scenario);
+    const probe =
+      files.length > 0
+        ? runScenarioTests(ctx.config, ctx.repoRoot, files)
+        : { ok: false, detail: "", ran: false };
+    if (job.mode !== "fidelity" && probe.ran && probe.ok) {
+      const suite = runTests(ctx.config, ctx.repoRoot);
+      if (suite.ok) {
+        return finishScenario(workId, scenario, ctx, {
+          filesTouched: [],
+          testsAdded: [],
+          summary: `Skipped scenario ${scenario.index}: existing test passed (${files.join(", ")}). No code changes.\n`,
+          skipped: true,
+          testsOk: true,
+          concern: null,
+          mode: job.mode,
+        });
+      }
+      return finishScenario(workId, scenario, ctx, {
+        filesTouched: [],
+        testsAdded: [],
+        summary: `Scenario ${scenario.index} test passed, but the suite failed.\n${suite.detail}\n`,
+        skipped: false,
+        testsOk: false,
+        concern: null,
+        mode: job.mode,
+      });
+    }
+    if (probe.ran && !probe.ok) failedDetail = probe.detail.slice(0, 2000);
+  }
+
   const dir = workDir(ctx.repoRoot, workId);
   const pack = packContext(ctx.repoRoot, dir, scenario);
+  const criteria = criteriaFor(job, failedDetail);
 
   const generated = implSchema.parse(
     await runGenerativeRole(
@@ -112,9 +176,11 @@ async function implementOneScenario(
         priorSummary: pack.priorSummary,
         files: pack.files,
         scenarioIndex: scenario.index,
+        reviewBrief: job?.brief ?? "",
+        implementMode: job?.mode ?? "new",
       },
       ctx.overrides,
-      "Implement exactly one BDD scenario test-first. Do not implement other scenarios. Return files/tests JSON.",
+      criteria,
     ),
   );
 
@@ -139,18 +205,65 @@ async function implementOneScenario(
     tests: testsAdded.map((t) => `- ${t}`).join("\n") || "- (none)",
     pipeline: "pending",
   });
+
+  return finishScenario(workId, scenario, ctx, {
+    filesTouched,
+    testsAdded,
+    summary: generated.summary ? `${generated.summary}\n` : summary,
+    skipped: false,
+    testsOk: null,
+    concern: generated.concern ?? null,
+    mode: job?.mode ?? "new",
+  });
+}
+
+function criteriaFor(
+  job: ImplementJob | undefined,
+  failedDetail: string,
+): string {
+  const brief = job?.brief ? `\n\n${job.brief}` : "";
+  const failure = failedDetail ? `\n\nTest output:\n${failedDetail}` : "";
+  if (job?.mode === "fidelity") return `${FIDELITY_CRITERIA}${brief}${failure}`;
+  if (failedDetail) return `${REPAIR_CRITERIA}${brief}${failure}`;
+  return `${NEW_CRITERIA}${brief}`;
+}
+
+function finishScenario(
+  workId: string,
+  scenario: Scenario,
+  ctx: StageContext,
+  outcome: {
+    filesTouched: string[];
+    testsAdded: string[];
+    summary: string;
+    skipped: boolean;
+    /** Null means run the suite now. */
+    testsOk: boolean | null;
+    concern: string | null;
+    mode: ImplementJob["mode"];
+  },
+): ScenarioRun {
   const sessionName = `${String(scenario.index).padStart(3, "0")}-summary.md`;
   const sessionSummaryPath = writeArtifact(
     ctx.repoRoot,
     workId,
     `sessions/${sessionName}`,
-    generated.summary ? `${generated.summary}\n` : summary,
+    outcome.summary,
   );
 
+  const testResult =
+    outcome.testsOk == null
+      ? runTests(ctx.config, ctx.repoRoot)
+      : { ok: outcome.testsOk, detail: outcome.summary };
   const identity = gitIdentity(ctx.repoRoot);
-  const testResult = runTests(ctx.config, ctx.repoRoot);
-
   let state = readState(ctx.repoRoot, workId);
+  const mode =
+    state.implementQueue?.find((job) => job.index === scenario.index)?.mode ??
+    outcome.mode;
+  const queue =
+    testResult.ok && state.implementQueue
+      ? state.implementQueue.filter((job) => job.index !== scenario.index)
+      : state.implementQueue;
   state = {
     ...state,
     implementerIdentity: identity,
@@ -158,6 +271,7 @@ async function implementOneScenario(
     currentScenario: testResult.ok
       ? Math.max(state.currentScenario ?? 0, scenario.index)
       : state.currentScenario,
+    implementQueue: queue && queue.length > 0 ? queue : testResult.ok ? null : queue,
   };
   writeState(ctx.repoRoot, state);
 
@@ -165,7 +279,9 @@ async function implementOneScenario(
     scenario: scenario.index,
     title: scenario.title,
     testsOk: testResult.ok,
-    concern: generated.concern,
+    concern: outcome.concern,
+    skipped: outcome.skipped,
+    mode,
   });
 
   if (!testResult.ok) {
@@ -176,21 +292,23 @@ async function implementOneScenario(
 
   const commitCreated =
     testResult.ok &&
-    filesTouched.length > 0 &&
+    !outcome.skipped &&
+    outcome.filesTouched.length > 0 &&
     gitCommit(
       ctx.repoRoot,
       `feat: ${scenario.title} (scenario ${scenario.index}, ${workId})`,
-      filesTouched,
+      outcome.filesTouched,
     );
 
   return {
     workId,
     scenario: scenario.index,
     scenarioTitle: scenario.title,
-    filesTouched,
-    testsAdded,
+    filesTouched: outcome.filesTouched,
+    testsAdded: outcome.testsAdded,
     sessionSummaryPath,
     commitCreated,
     pipelineStatus: state.pipelineStatus,
+    skipped: outcome.skipped,
   };
 }

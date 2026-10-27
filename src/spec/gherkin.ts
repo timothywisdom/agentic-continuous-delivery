@@ -40,6 +40,7 @@ export function selectImplementScenarios(
   scenarios: Scenario[],
   requested: number | undefined,
   currentScenario: number | null,
+  queuedIndexes?: number[] | null,
 ): Scenario[] {
   if (scenarios.length === 0) {
     throw new Error("No Gherkin scenarios found. Run `acd specify` first.");
@@ -52,6 +53,20 @@ export function selectImplementScenarios(
       );
     }
     return [found];
+  }
+  if (queuedIndexes) {
+    if (queuedIndexes.length === 0) {
+      throw new Error(
+        "No scenarios left in the review follow-up queue. Pass --scenario N to re-run one.",
+      );
+    }
+    return queuedIndexes.map((index) => {
+      const found = scenarios.find((s) => s.index === index);
+      if (!found) {
+        throw new Error(`Queued scenario ${index} is not in behavior.feature.`);
+      }
+      return found;
+    });
   }
   const start = (currentScenario ?? 0) + 1;
   const remaining = scenarios.filter((s) => s.index >= start);

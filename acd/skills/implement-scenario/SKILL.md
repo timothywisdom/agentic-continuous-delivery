@@ -20,6 +20,8 @@ Implementation:
 3. Do not implement other scenarios.
 4. If the scenario conflicts with the feature description, flag the conflict; do not resolve authority yourself.
 5. On escalation triggers in the feature description, stop and ask.
+6. When the brief says the scenario was reopened for test fidelity, rewrite the acceptance test so each Given/When/Then is actually performed, then make that stricter test pass. Do not weaken assertions.
+7. When the brief says the existing test failed, change product code only. Do not weaken the test.
 
 Done when: the acceptance test for this scenario passes and prior tests still pass.
 

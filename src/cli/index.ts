@@ -16,6 +16,7 @@ import { implementStage } from "../stages/implement.js";
 import { intakeStage } from "../stages/intake.js";
 import { prStage } from "../stages/pr.js";
 import { reviewStage } from "../stages/review.js";
+import { reviseFromLatestReview } from "../stages/revise.js";
 import { specifyStage } from "../stages/specify.js";
 import type { Span } from "@opentelemetry/api";
 import type { AcdConfig, CliOverrides } from "../types/config.js";
@@ -43,8 +44,9 @@ Usage:
   acd-kit config
   acd intake --from "<plain english>"
   acd specify [--artifact intent|behavior|feature|acceptance|all]
-  acd implement [--scenario N]   # omit N: remaining scenarios, one red-green cycle each
+  acd implement [--scenario N]   # omit N: review follow-ups, else remaining scenarios
   acd review
+  acd revise                     # fold the latest blocking review into the spec
   acd pr
   acd ci-review
   acd test
@@ -253,6 +255,26 @@ async function dispatchCommand(
     noteValue(decisionFromStageResult("review", result), stagePayload(result), span);
     printJson(result);
     if (result.output?.decision === "block") process.exitCode = 1;
+    return;
+  }
+
+  if (cmd === "revise") {
+    const workId = resolveWorkId(repoRoot, overrides.workId);
+    const result = reviseFromLatestReview(repoRoot, workId);
+    const summary = {
+      reopened: result.reopened.length,
+      addedScenarios: result.addedScenarios.length,
+      acceptanceRows: result.acceptanceRows,
+      notes: result.notes.length,
+      unmapped: result.unmapped.length,
+      queue: result.implementQueue.map((job) => ({
+        index: job.index,
+        mode: job.mode,
+      })),
+      clearedApproval: result.clearedApproval,
+    };
+    noteValue(decisionFromCommand("revise", summary), summary, span);
+    printJson(result);
     return;
   }
 

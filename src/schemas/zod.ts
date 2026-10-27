@@ -2,6 +2,12 @@ import { z } from "zod";
 import { AGENT_ROLES, HITL_PRESETS, TIERS } from "../types/config.js";
 import { STAGE_NAMES } from "../types/stages.js";
 
+export const implementJobSchema = z.object({
+  index: z.number().int().positive(),
+  mode: z.enum(["new", "fidelity"]),
+  brief: z.string(),
+});
+
 export const stageNameSchema = z.enum(STAGE_NAMES);
 export const modelTierSchema = z.enum(TIERS);
 export const hitlPresetSchema = z.enum(HITL_PRESETS);
@@ -96,6 +102,8 @@ export const workStateSchema = z.object({
   awaitingGuidance: stageNameSchema.nullable().default(null),
   guidanceNote: z.string().nullable().default(null),
   currentScenario: z.number().nullable(),
+  implementQueue: z.array(implementJobSchema).nullable().default(null),
+  absorbedReviewFindings: z.array(z.string()).default([]),
   lastError: z.string().nullable(),
   lastStageOutput: z.record(z.unknown()).nullable(),
   approvedStages: z.array(stageNameSchema),
@@ -180,6 +188,7 @@ export const implementOutputSchema = z.object({
   pipelineStatus: z.enum(["green", "red"]),
   scenariosCompleted: z.array(z.number().int().positive()),
   remaining: z.number().int().nonnegative(),
+  skippedScenarios: z.array(z.number().int().positive()),
 });
 
 export const reviewInputSchema = z.object({

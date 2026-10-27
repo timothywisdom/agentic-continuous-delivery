@@ -54,6 +54,8 @@ function blankState(over: Partial<WorkState> = {}): WorkState {
     awaitingGuidance: null,
     guidanceNote: null,
     currentScenario: null,
+    implementQueue: null,
+    absorbedReviewFindings: [],
     lastError: null,
     lastStageOutput: null,
     approvedStages: [],

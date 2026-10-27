@@ -45,6 +45,12 @@
     },
     "remaining": {
       "type": "number"
+    },
+    "skippedScenarios": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
     }
   },
   "required": [
@@ -57,7 +63,8 @@
     "commitCreated",
     "pipelineStatus",
     "scenariosCompleted",
-    "remaining"
+    "remaining",
+    "skippedScenarios"
   ],
   "additionalProperties": false
 }

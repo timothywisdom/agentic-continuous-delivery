@@ -33,6 +33,7 @@ const COMMANDS = [
   "specify",
   "implement",
   "review",
+  "revise",
   "pr",
   "ci-review",
   "fix",

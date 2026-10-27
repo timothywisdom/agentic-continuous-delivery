@@ -8,6 +8,14 @@ export interface RejectionRecord {
   at: string;
 }
 
+/** One scenario `acd implement` should revisit after `acd revise`. */
+export interface ImplementJob {
+  index: number;
+  /** `fidelity` rewrites the test. `new` writes a test only when none exists. */
+  mode: "new" | "fidelity";
+  brief: string;
+}
+
 export interface WorkState {
   id: string;
   createdAt: string;
@@ -21,6 +29,10 @@ export interface WorkState {
   /** Human note applied on the next generative/repair pass. */
   guidanceNote: string | null;
   currentScenario: number | null;
+  /** Scenarios to run instead of the watermark. Null keeps watermark behavior. */
+  implementQueue: ImplementJob[] | null;
+  /** Finding keys already folded into the spec, so revise does not repeat them. */
+  absorbedReviewFindings: string[];
   lastError: string | null;
   lastStageOutput: Record<string, unknown> | null;
   approvedStages: StageName[];
@@ -84,6 +96,8 @@ export interface ImplementOutput {
   scenariosCompleted: number[];
   /** Numbered scenarios still waiting after this run. */
   remaining: number;
+  /** Queued scenarios whose existing test already passed. */
+  skippedScenarios: number[];
 }
 
 export interface ReviewFinding {

@@ -122,6 +122,12 @@ export function decisionFromCommand(
         typeof o.latestFindings === "number" ? o.latestFindings : 0;
       return `${n} review${n === 1 ? "" : "s"}; latest ${decision} (${findings} findings)`;
     }
+    case "revise": {
+      const added = typeof o.addedScenarios === "number" ? o.addedScenarios : 0;
+      const reopened = typeof o.reopened === "number" ? o.reopened : 0;
+      const unmapped = typeof o.unmapped === "number" ? o.unmapped : 0;
+      return `revised spec; ${added} new scenario${added === 1 ? "" : "s"}, ${reopened} reopened${unmapped ? `, ${unmapped} unmapped` : ""}`;
+    }
     default:
       return decisionFromOutput(cmd, payload);
   }
