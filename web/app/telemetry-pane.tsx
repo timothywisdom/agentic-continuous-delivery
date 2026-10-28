@@ -14,10 +14,8 @@ export function TelemetryPane({
   const totals = useMemo(() => summarize(spans), [spans]);
 
   return (
-    <section className="panel tel-panel">
-      <h2>Telemetry</h2>
-      <div className="panel-body tel-body">
-        <div className="tel-totals">
+    <div className="tel-embed">
+      <div className="tel-totals">
           <span>
             {running ? "Live" : spans.length ? "Last run" : "Idle"} · {spans.length}{" "}
             span{spans.length === 1 ? "" : "s"}
@@ -37,8 +35,7 @@ export function TelemetryPane({
             ))}
           </ol>
         )}
-      </div>
-    </section>
+    </div>
   );
 }
 

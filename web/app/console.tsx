@@ -5,6 +5,7 @@ import { CSRF_HEADER } from "../../dist/ui/security.js";
 import { isStageName, nextPipelineStage } from "../../dist/ui/cli-args.js";
 import { ArtifactPane, type Artifact } from "./artifact-pane";
 import { CycleGraph } from "./cycle-graph";
+import { EventPane, type SessionEvent } from "./event-pane";
 import { ReviewPane } from "./review-pane";
 import { TelemetryPane } from "./telemetry-pane";
 import type { ReviewRun } from "../../dist/work/reviews.js";
@@ -58,7 +59,10 @@ export function Console() {
   const [state, setState] = useState<WorkState | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [reviews, setReviews] = useState<ReviewRun[]>([]);
-  const [libraryTab, setLibraryTab] = useState<"artifacts" | "reviews">("artifacts");
+  const [events, setEvents] = useState<SessionEvent[]>([]);
+  const [libraryTab, setLibraryTab] = useState<
+    "artifacts" | "reviews" | "events" | "telemetry"
+  >("artifacts");
   const [command, setCommand] = useState<Command>("status");
   const [fromText, setFromText] = useState("");
   const [artifact, setArtifact] = useState("all");
@@ -101,6 +105,7 @@ export function Console() {
         setState(null);
         setArtifacts([]);
         setReviews([]);
+        setEvents([]);
         return;
       }
       const statusJson = await runAndParse(
@@ -122,6 +127,12 @@ export function Console() {
         silentLog,
       );
       setReviews((reviewJson as { reviews?: ReviewRun[] }).reviews ?? []);
+      const eventJson = await runAndParse(
+        token,
+        { command: "events", args: [selected] },
+        silentLog,
+      );
+      setEvents((eventJson as { events?: SessionEvent[] }).events ?? []);
     } catch (err) {
       setRunError(err instanceof Error ? err.message : String(err));
     }
@@ -141,6 +152,7 @@ export function Console() {
     setRunError(null);
     setLogs([]);
     setSpans([]);
+    setLibraryTab("telemetry");
     try {
       const body = buildBody({
         command,
@@ -415,7 +427,6 @@ export function Console() {
                 ))}
           </pre>
         </section>
-        <TelemetryPane spans={spans} running={running} />
         </div>
       </div>
 
@@ -442,10 +453,34 @@ export function Console() {
               <span className="tab-count">{reviews.at(-1)?.findings.length}</span>
             ) : null}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={libraryTab === "events"}
+            className={libraryTab === "events" ? "on" : ""}
+            onClick={() => setLibraryTab("events")}
+          >
+            Events
+            {events.length > 0 ? <span className="tab-count">{events.length}</span> : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={libraryTab === "telemetry"}
+            className={libraryTab === "telemetry" ? "on" : ""}
+            onClick={() => setLibraryTab("telemetry")}
+          >
+            Telemetry
+            {spans.length > 0 ? <span className="tab-count">{spans.length}</span> : null}
+          </button>
         </div>
         <div className="panel-body artifacts">
           {libraryTab === "reviews" ? (
             <ReviewPane reviews={reviews} repo={repo} />
+          ) : libraryTab === "events" ? (
+            <EventPane events={events} />
+          ) : libraryTab === "telemetry" ? (
+            <TelemetryPane spans={spans} running={running} />
           ) : artifacts.length === 0 ? (
             <span className="banner">No artifacts yet.</span>
           ) : (

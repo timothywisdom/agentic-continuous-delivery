@@ -58,6 +58,7 @@ Usage:
   acd list
   acd artifacts [work-id]
   acd reviews [work-id]
+  acd events [work-id]
   acd artifact-save <name> [--work-id <id>] [--contents "..."]
   acd ui [--port N] [--repo-root <path>]
   acd deploy|canary|rollback|hypothesis   (stubs)
@@ -465,6 +466,19 @@ async function dispatchCommand(
       span,
     );
     printJson(payload);
+    return;
+  }
+
+  if (cmd === "events") {
+    const workId = resolveWorkId(repoRoot, args[0] ?? overrides.workId);
+    const events = readEvents(repoRoot, workId);
+    const latest = events.at(-1);
+    const summary = {
+      eventCount: events.length,
+      latestType: latest?.type ?? null,
+    };
+    noteValue(decisionFromCommand("events", summary), summary, span);
+    printJson({ workId, events });
     return;
   }
 

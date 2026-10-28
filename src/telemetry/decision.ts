@@ -128,6 +128,12 @@ export function decisionFromCommand(
       const unmapped = typeof o.unmapped === "number" ? o.unmapped : 0;
       return `revised spec; ${added} new scenario${added === 1 ? "" : "s"}, ${reopened} reopened${unmapped ? `, ${unmapped} unmapped` : ""}`;
     }
+    case "events": {
+      const n = typeof o.eventCount === "number" ? o.eventCount : 0;
+      if (n === 0) return "no events";
+      const latest = typeof o.latestType === "string" ? o.latestType : "unknown";
+      return `${n} event${n === 1 ? "" : "s"}; latest ${latest}`;
+    }
     default:
       return decisionFromOutput(cmd, payload);
   }

@@ -16,6 +16,7 @@ Every stage is `acd <stage>` with the same typed contracts. Start wherever artif
 | Open PR | `acd pr` | Scripted body from artifacts |
 | CI | `acd ci-review` | Same review JSON; tests |
 | Observe | `acd status [id]` | Always on, including HitL-off |
+| Session log | `acd events [id]` | `events.jsonl` in order, with each decision |
 | Edit an artifact | `acd artifact-save <name>` (stdin or `--contents`) | Writes a file under `.acd/work/<id>/` |
 | Debug routing | `acd config` | Harness / tier / model / HitL |
 | Local UI | `acd ui [--repo-root <path>]` | Optional; drives the same CLI on 127.0.0.1 |

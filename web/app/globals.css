@@ -341,6 +341,15 @@ button {
   overflow: hidden;
 }
 
+.tel-embed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  max-height: 640px;
+  overflow: auto;
+}
+
 .panel h2 {
   margin: 0;
   padding: 12px 14px;
@@ -549,6 +558,80 @@ textarea {
 
 .review-empty code {
   color: var(--text);
+}
+
+.event-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.event-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 640px;
+  overflow: auto;
+}
+
+.event-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 2.5rem 9rem minmax(8rem, max-content) minmax(5rem, max-content) minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: baseline;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.event-index,
+.event-row time {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-type {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.event-stage {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.event-summary {
+  font-size: 13px;
+  min-width: 0;
+}
+
+.event-json {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: pre;
 }
 
 .review-checks span,
