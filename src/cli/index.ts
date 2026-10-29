@@ -40,7 +40,9 @@ function usage(): string {
   return `acd — Agentic Continuous Delivery runner (deterministic orchestrator)
 
 Usage:
+  acd help | --help | -h
   acd-kit init [dir] [--cursor] [--github]
+  acd-kit write-schemas
   acd-kit config
   acd intake --from "<plain english>"
   acd specify [--artifact intent|behavior|feature|acceptance|all]
@@ -48,7 +50,7 @@ Usage:
   acd review
   acd revise                     # fold the latest blocking review into the spec
   acd pr
-  acd ci-review
+  acd ci-review                 # alias: ci_review
   acd test
   acd fix
   acd approve <stage>
