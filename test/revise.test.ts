@@ -136,6 +136,25 @@ describe("planRevision", () => {
     expect(plan.feature).toMatch(/### Musts\n- Keep the change small\n- the button stays visible while loading/);
   });
 
+  it("continues evaluation ids when behavior.feature already uses them", () => {
+    const plan = planRevision({
+      behavior: `Feature: calculator\n\n  Scenario E1: Add\n    Then 3\n\n  Scenario: E2. Subtract\n    Then 1\n`,
+      feature: FEATURE,
+      acceptance: ACCEPTANCE,
+      findings: [
+        finding({
+          agent: "semantic",
+          issue: "divide by zero shows no error",
+          why: "the user sees a blank display",
+        }),
+      ],
+      absorbedKeys: [],
+    });
+    expect(plan.behavior).toContain("Scenario: E3. divide by zero shows no error");
+    expect(plan.acceptance).toContain("Scenario E3:");
+    expect(plan.addedScenarios.map((item) => item.index)).toEqual([3]);
+  });
+
   it("keeps non-observable performance and unmapped fidelity out of the spec", () => {
     expect(plan.notes.map((note) => note.issue)).toEqual(["the inner loop is slow"]);
     expect(plan.unmapped.map((item) => item.issue)).toEqual(["asserts a private helper"]);

@@ -8,7 +8,7 @@ Every stage is `acd <stage>` with the same typed contracts. Start wherever artif
 | Need specs | `acd specify [--artifact intent\|behavior\|feature\|acceptance\|all]` | Agents draft; classifier gates validator |
 | Spec waiting | `acd approve specify` / `acd reject specify --reason "..."` | Only if `require_human_approval` |
 | Remaining scenarios | `acd implement` | Test-first. Runs the review follow-up queue when one is set; otherwise remaining numbered scenarios. A queued scenario whose test already passes is left as-is unless it was reopened for test fidelity. Stops if red |
-| One scenario | `acd implement --scenario N` | Re-runs that scenario, including its agent |
+| One scenario | `acd implement --scenario <id>` | Re-runs that heading (`3` or `E10a`), including its agent |
 | Pipeline red | `acd fix` | Only legal command for new changes |
 | Before commit/PR | `acd review` | Mechanical hooks + parallel expert agents |
 | Review findings | `acd revise` | Folds the latest blocking review into the spec and queues `acd implement`. Does not approve the review |

@@ -9,7 +9,6 @@ import { specifyInputSchema, specifyOutputSchema } from "../schemas/zod.js";
 import {
   countScenarios,
   isSpecTooLarge,
-  numberScenarios,
   parseScenarios,
 } from "../spec/gherkin.js";
 import type { SpecifyInput, SpecifyOutput } from "../types/work.js";
@@ -203,7 +202,7 @@ async function draftArtifacts(
       ),
     );
     if (out.behavior) {
-      current.behavior = persistNumberedBehavior(
+      current.behavior = persistBehavior(
         ctx.repoRoot,
         workId,
         out.behavior,
@@ -278,7 +277,7 @@ async function repairArtifacts(
     writeArtifact(ctx.repoRoot, workId, "intent.md", out.intent);
   }
   if (out.behavior) {
-    persistNumberedBehavior(ctx.repoRoot, workId, out.behavior);
+    persistBehavior(ctx.repoRoot, workId, out.behavior);
   }
   if (out.feature) {
     writeArtifact(ctx.repoRoot, workId, "feature.md", out.feature);
@@ -320,14 +319,13 @@ function formatFeedback(
   return parts.join("\n") || "Spec did not pass validation.";
 }
 
-function persistNumberedBehavior(
+function persistBehavior(
   repoRoot: string,
   workId: string,
   behavior: string,
 ): string {
-  const numbered = numberScenarios(behavior);
-  writeArtifact(repoRoot, workId, "behavior.feature", numbered);
-  return numbered;
+  writeArtifact(repoRoot, workId, "behavior.feature", behavior);
+  return behavior;
 }
 
 function clearGuidance(repoRoot: string, workId: string): void {
@@ -353,11 +351,7 @@ function finishSpecify(
   latest: Artifacts,
   findings: string[],
 ): SpecifyOutput {
-  latest.behavior = persistNumberedBehavior(
-    repoRoot,
-    workId,
-    latest.behavior,
-  );
+  latest.behavior = persistBehavior(repoRoot, workId, latest.behavior);
   const scenarioCount = countScenarios(latest.behavior);
   const tooLarge = isSpecTooLarge(latest.intent, scenarioCount);
   if (tooLarge) {
@@ -371,7 +365,12 @@ function finishSpecify(
     repoRoot,
     workId,
     "order.yaml",
-    `scenarios:\n${scenarios.map((s) => `  - ${s.index}: ${JSON.stringify(s.title)}`).join("\n")}\n`,
+    `scenarios:\n${scenarios
+      .map(
+        (s) =>
+          `  - id: ${JSON.stringify(s.label)}\n    title: ${JSON.stringify(s.title)}`,
+      )
+      .join("\n")}\n`,
   );
 
   emit(repoRoot, workId, "specify.validated", "specify", {

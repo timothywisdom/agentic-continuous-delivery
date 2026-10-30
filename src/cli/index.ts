@@ -46,7 +46,7 @@ Usage:
   acd-kit config
   acd intake --from "<plain english>"
   acd specify [--artifact intent|behavior|feature|acceptance|all]
-  acd implement [--scenario N]   # omit N: review follow-ups, else remaining scenarios
+  acd implement [--scenario <id>]   # id is the heading label (1 or E10a); omit: review follow-ups, else remaining scenarios
   acd review
   acd revise                     # fold the latest blocking review into the spec
   acd pr
@@ -240,8 +240,7 @@ async function dispatchCommand(
 
   if (cmd === "implement") {
     const workId = resolveWorkId(repoRoot, overrides.workId);
-    const scenario =
-      typeof flags.scenario === "string" ? Number(flags.scenario) : undefined;
+    const scenario = typeof flags.scenario === "string" ? flags.scenario : undefined;
     const result = await runStage(
       implementStage,
       { workId, scenario },

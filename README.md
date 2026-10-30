@@ -95,7 +95,7 @@ These flags are optional on every command that loads project config (`config` th
 | `config` | Print the resolved harness, tier, model, and human-approval settings. | Shared flags. | `npx acd-kit config` |
 | `intake` | Create a work item from plain English. | `--from <text>` required. Shared flags. | `npx acd-kit intake --from "Build a calculator web app"` |
 | `specify` | Draft the spec. The classifier gates the validator. | `--artifact intent\|behavior\|feature\|acceptance\|all` optional. Default: `all`. Shared flags. | `npx acd-kit specify --artifact behavior` |
-| `implement` | Implement scenarios test-first. With no scenario, runs the review follow-up queue when one is set, otherwise the remaining numbered scenarios. Stops if the pipeline is red. | `--scenario <n>` optional. That scenario always calls the agent. Shared flags. | `npx acd-kit implement --scenario 3` |
+| `implement` | Implement scenarios test-first. With no scenario, runs the review follow-up queue when one is set, otherwise the remaining scenarios. Stops if the pipeline is red. | `--scenario <id>` optional. The id is the heading label (`3` or `E10a`). That scenario always calls the agent. Shared flags. | `npx acd-kit implement --scenario E10a` |
 | `review` | Run mechanical hooks and the parallel review agents. A `block` decision exits 1. | Shared flags. | `npx acd-kit review` |
 | `revise` | Fold the latest blocking review into the spec and queue `implement`. Leaves the review unapproved. Refuses while the pipeline is red. | Shared flags. | `npx acd-kit revise` |
 | `pr` | Open a pull request whose body comes from the work-item artifacts. | Shared flags. | `npx acd-kit pr` |

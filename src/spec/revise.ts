@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import type { ImplementJob, ReviewFinding } from "../types/work.js";
-import { parseScenarios, type Scenario } from "./gherkin.js";
+import { nextEvaluationLabel, parseScenarios, type Scenario } from "./gherkin.js";
 import { slugsMatch } from "./scenario-tests.js";
 import { slugify } from "../work/store.js";
 
 const OBSERVABLE =
   /\b(display|user|error|page|button|keyboard|layout|visible|message|screen)\b/i;
 const MUST_NOT = /\bmust not\b|\bdo not\b|\bshould not\b/i;
-const SCENARIO_REF = /Scenario(?: Outline)?:?\s*(\d+)/i;
+const SCENARIO_REF = /Scenario(?:\s+Outline)?\s*:?\s*(E\d+[A-Za-z]*|\d+)/i;
 
 export interface RevisePlan {
   behavior: string;
@@ -127,10 +127,12 @@ export function planRevision(input: {
   for (const finding of [...behaviorAdds, ...constraintAdds]) {
     const key = findingKey(finding);
     const title = scenarioTitle(finding.issue);
-    behavior = `${behavior.trimEnd()}\n\n${scenarioBlock(next, title, key, finding.issue)}\n`;
+    const existing = parseScenarios(behavior);
+    const label = nextEvaluationLabel(existing) ?? String(next);
+    behavior = `${behavior.trimEnd()}\n\n${scenarioBlock(label, title, key, finding.issue)}\n`;
     acceptance = appendAcceptance(
       acceptance,
-      `- [ ] Scenario ${next}: ${title} <!-- acd-review:${key} -->`,
+      `- [ ] Scenario ${label}: ${title} <!-- acd-review:${key} -->`,
     );
     acceptanceRows += 1;
     if (constraintAdds.includes(finding)) {
@@ -204,8 +206,15 @@ export function matchScenario(
   const text = `${finding.issue}\n${finding.why}`;
   const numbered = text.match(SCENARIO_REF);
   if (numbered) {
-    const index = Number(numbered[1]);
-    if (scenarios.some((s) => s.index === index)) return index;
+    const token = numbered[1] ?? "";
+    const byLabel = scenarios.find(
+      (scenario) => scenario.label.toLowerCase() === token.toLowerCase(),
+    );
+    if (byLabel) return byLabel.index;
+    if (/^\d+$/.test(token)) {
+      const index = Number(token);
+      if (scenarios.some((scenario) => scenario.index === index)) return index;
+    }
   }
   const base = (finding.file.split(/[/\\]/).pop() ?? finding.file).replace(
     /\.(test|spec)\.[^.]+$/i,
@@ -236,23 +245,25 @@ function nextScenarioIndex(behavior: string): number {
 function markScenario(behavior: string, index: number, key: string): string {
   const marker = `# acd-review:${key}`;
   if (behavior.includes(marker)) return behavior;
-  const re = new RegExp(
-    `^(\\s*Scenario(?: Outline)?:\\s*${index}[.):].*)$`,
-    "m",
+  const scenario = parseScenarios(behavior).find((item) => item.index === index);
+  if (!scenario) return behavior;
+  const at = behavior.indexOf(scenario.heading);
+  if (at < 0) return behavior;
+  const indent = scenario.heading.match(/^\s*/)?.[0] ?? "  ";
+  return (
+    behavior.slice(0, at) + `${indent}${marker}\n` + behavior.slice(at)
   );
-  if (!re.test(behavior)) return behavior;
-  return behavior.replace(re, `$1\n    ${marker}`);
 }
 
 function scenarioBlock(
-  index: number,
+  label: string,
   title: string,
   key: string,
   issue: string,
 ): string {
   return [
     `  # acd-review:${key}`,
-    `  Scenario: ${index}. ${title}`,
+    `  Scenario: ${label}. ${title}`,
     "    Given the behavior recorded for this work item",
     "    When the reviewed condition is exercised",
     `    Then the issue does not recur: ${oneLine(issue, 240)}`,

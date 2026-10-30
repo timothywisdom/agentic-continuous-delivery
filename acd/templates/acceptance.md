@@ -4,4 +4,6 @@
 
 ## Evaluation design
 
-**Test Case 1 (Happy Path):** [setup]. Result: [known-good output].
+| ID | Steps | Expected |
+| --- | --- | --- |
+| E1 | [setup] | [known-good output] |

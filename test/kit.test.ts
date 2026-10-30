@@ -33,7 +33,6 @@ import {
 } from "../src/work/store.js";
 import type { WorkState } from "../src/types/work.js";
 import {
-  numberScenarios,
   parseScenarios,
   selectImplementScenarios,
 } from "../src/spec/gherkin.js";
@@ -76,20 +75,40 @@ describe("gherkin", () => {
     expect(parseScenarios(text).map((s) => s.title)).toEqual(["a", "b"]);
   });
 
-  it("numbers headings and reads --scenario indexes from the file", () => {
+  it("reads numbered, outline, and evaluation-id headings", () => {
     const text = `Feature: x
   Scenario: first open
     Then y
   Scenario Outline: add two numbers
-    Then z`;
-    const numbered = numberScenarios(text);
-    expect(numbered).toContain("Scenario: 1. first open");
-    expect(numbered).toContain("Scenario Outline: 2. add two numbers");
-    expect(parseScenarios(numbered).map((s) => s.index)).toEqual([1, 2]);
-    expect(parseScenarios(numbered).map((s) => s.title)).toEqual([
+    Then z
+  Scenario 3: Subtract
+    Then w
+  Scenario E10a: Clear after divide by zero
+    Then 0
+  Scenario: E8b. Clear mid-expression
+    Then 0`;
+    const parsed = parseScenarios(text);
+    expect(parsed.map((scenario) => scenario.index)).toEqual([1, 2, 3, 4, 5]);
+    expect(parsed.map((scenario) => scenario.label)).toEqual([
+      "1",
+      "2",
+      "3",
+      "E10a",
+      "E8b",
+    ]);
+    expect(parsed.map((scenario) => scenario.title)).toEqual([
       "first open",
       "add two numbers",
+      "Subtract",
+      "Clear after divide by zero",
+      "Clear mid-expression",
     ]);
+    expect(
+      selectImplementScenarios(parsed, "E10a", null).map((scenario) => scenario.label),
+    ).toEqual(["E10a"]);
+    expect(
+      selectImplementScenarios(parsed, 3, null).map((scenario) => scenario.title),
+    ).toEqual(["Subtract"]);
   });
 
   it("selects remaining scenarios when --scenario is omitted", () => {

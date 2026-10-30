@@ -80,7 +80,7 @@ export interface SpecifyOutput {
 
 export interface ImplementInput {
   workId: string;
-  scenario?: number;
+  scenario?: number | string;
 }
 
 export interface ImplementOutput {

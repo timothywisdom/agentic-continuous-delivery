@@ -174,7 +174,7 @@ export const specifyOutputSchema = z.object({
 
 export const implementInputSchema = z.object({
   workId: z.string(),
-  scenario: z.number().int().positive().optional(),
+  scenario: z.union([z.number().int().positive(), z.string().min(1)]).optional(),
 });
 
 export const implementOutputSchema = z.object({

@@ -6,7 +6,6 @@ import type { StageContext, StageDef } from "../orchestrator/index.js";
 import { packContext } from "../packer/context.js";
 import { implementInputSchema, implementOutputSchema } from "../schemas/zod.js";
 import {
-  numberScenarios,
   parseScenarios,
   selectImplementScenarios,
   type Scenario,
@@ -61,11 +60,7 @@ export const implementStage: StageDef<ImplementInput, ImplementOutput> = {
   async run(input, ctx) {
     const { workId } = input;
     const raw = readArtifact(ctx.repoRoot, workId, "behavior.feature");
-    const numbered = numberScenarios(raw);
-    if (numbered !== raw) {
-      writeArtifact(ctx.repoRoot, workId, "behavior.feature", numbered);
-    }
-    const scenarios = parseScenarios(numbered);
+    const scenarios = parseScenarios(raw);
     const jobs = new Map(
       (ctx.state.implementQueue ?? []).map((job) => [job.index, job]),
     );
