@@ -138,6 +138,114 @@ button {
   font-size: 10px;
 }
 
+.edge-caption {
+  font-size: 9px;
+}
+
+.graph-stage {
+  position: relative;
+}
+
+.transfer-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.transfer-dot {
+  position: absolute;
+  left: 69.6%;
+  top: 9.3%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: #ffd76a;
+  box-shadow: 0 0 0 1px #1a1408;
+  animation: bead-into-spec 2.2s ease-in-out forwards;
+}
+
+@keyframes bead-into-spec {
+  0% {
+    left: 69.6%;
+    top: 9.3%;
+  }
+  55% {
+    left: 29.1%;
+    top: 34.9%;
+  }
+  100% {
+    left: 29.1%;
+    top: 9.3%;
+  }
+}
+
+.node.suggested rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  animation: suggest-pulse 1.4s ease-in-out infinite;
+}
+
+.node.receiving rect {
+  stroke: var(--ok);
+  stroke-width: 2.5;
+}
+
+.next-step {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 4px 4px;
+}
+
+.next-step span {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.next-step button {
+  flex: none;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.next-step button:hover {
+  border-color: var(--text);
+}
+
+.next-step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@keyframes suggest-pulse {
+  0%,
+  100% {
+    stroke-width: 2;
+  }
+  50% {
+    stroke-width: 3.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node.suggested rect {
+    animation: none;
+  }
+
+  .transfer-dot {
+    animation: none;
+    left: 29.1%;
+    top: 9.3%;
+  }
+}
+
 .gate {
   cursor: pointer;
 }

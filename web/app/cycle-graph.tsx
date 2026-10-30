@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { graphNodeEmphasis } from "../../dist/ui/cli-args.js";
+import type { NextSuggestion, ReviseTransfer } from "../../dist/ui/next-command.js";
 
 const NW = 112;
 const NH = 32;
@@ -75,6 +79,8 @@ export function CycleGraph({
   state,
   selected,
   selectedStage,
+  suggestion,
+  transfer,
   onPick,
 }: {
   state: {
@@ -85,10 +91,15 @@ export function CycleGraph({
   } | null;
   selected: string;
   selectedStage: string;
+  suggestion: NextSuggestion | null;
+  transfer: (ReviseTransfer & { token: number }) | null;
   onPick: (pick: { command: string; stage?: string }) => void;
 }) {
   const byId = new Map(NODES.map((node) => [node.id, node]));
+  const playing = useTransferPlayback(transfer?.token ?? 0);
+  const beadCount = Math.min(transfer?.moved ?? 0, 18);
   return (
+    <div className="graph-stage">
     <svg className="graph" viewBox="0 0 900 344" role="group" aria-label="ACD cycle">
       <defs>
         <marker id="cycle-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
@@ -115,6 +126,9 @@ export function CycleGraph({
       })}
       <text className="cycle-note" x="78" y="156">
         new cycle
+      </text>
+      <text className="cycle-note edge-caption" x="276" y="78">
+        updates spec
       </text>
       {GATES.map((gate) =>
         GATE_COMMANDS.map((command, index) => {
@@ -147,6 +161,10 @@ export function CycleGraph({
         const classes = ["node", node.kind];
         if (emphasis) classes.push(emphasis);
         if (selected === node.command) classes.push("selected");
+        if (suggestion?.command === node.command) classes.push("suggested");
+        if (playing && transfer && transfer.moved > 0 && node.id === "specify") {
+          classes.push("receiving");
+        }
         return (
           <g
             key={node.id}
@@ -197,7 +215,31 @@ export function CycleGraph({
         );
       })}
     </svg>
+    {playing && transfer && transfer.moved > 0 ? (
+      <div className="transfer-layer" aria-hidden="true">
+        {Array.from({ length: beadCount }, (_, index) => (
+          <span
+            key={`${transfer.token}-${index}`}
+            className="transfer-dot"
+            style={{ animationDelay: `${index * 0.08}s` }}
+          />
+        ))}
+      </div>
+    ) : null}
+    </div>
   );
+}
+
+function useTransferPlayback(token: number): boolean {
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!token) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setPlaying(true);
+    const timer = window.setTimeout(() => setPlaying(false), 7000);
+    return () => window.clearTimeout(timer);
+  }, [token]);
+  return playing;
 }
 
 function port(node: GNode, side: Side, bend: number): Point {

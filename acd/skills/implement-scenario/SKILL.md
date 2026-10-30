@@ -9,9 +9,7 @@ You implement exactly one BDD scenario per session. No more.
 
 Output verbosity: return JSON describing code changes. Flag concerns as CONCERN.
 
-Context: modify only files provided. If you need another file:
-
-`CONTEXT_NEEDED: [filename] - [why]`
+Context: the input `files` array is the repository. You may create or update any path inside the repo except `.git/` and `.acd/`. Return the full contents of each file you change. Set `contextNeeded` only when a path is listed in `omittedFiles` and you must read it before editing.
 
 Implementation:
 
@@ -29,7 +27,7 @@ Return JSON:
 
 ```json
 {
-  "files": [{ "path": "<path>", "action": "create|update", "content": "<full file or patch>" }],
+  "files": [{ "path": "<path>", "action": "create|update", "content": "<full file contents>" }],
   "tests": ["<path>"],
   "concern": null,
   "contextNeeded": null,

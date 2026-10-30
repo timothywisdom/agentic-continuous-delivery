@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CSRF_HEADER } from "../../dist/ui/security.js";
-import { isStageName, nextPipelineStage } from "../../dist/ui/cli-args.js";
+import {
+  reviseTransfer,
+  suggestNextCommand,
+  type ReviseTransfer,
+} from "../../dist/ui/next-command.js";
 import { ArtifactPane, type Artifact } from "./artifact-pane";
 import { CycleGraph } from "./cycle-graph";
 import { EventPane, type SessionEvent } from "./event-pane";
@@ -20,6 +24,8 @@ type WorkState = {
   awaitingGuidance: string | null;
   lastError: string | null;
   guidanceNote: string | null;
+  implementQueue: { index: number }[] | null;
+  lastStageOutput: { findings?: unknown[] } | null;
 };
 
 type LogLine = { stream: string; text: string };
@@ -78,7 +84,13 @@ export function Console() {
   const [running, setRunning] = useState(false);
   const [savingName, setSavingName] = useState<string | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [transfer, setTransfer] = useState<
+    (ReviseTransfer & { token: number; headline: string }) | null
+  >(null);
   const logRef = useRef<HTMLPreElement>(null);
+  const commandRef = useRef<HTMLSelectElement>(null);
+  const playedRevise = useRef<string | null>(null);
+  const suppressEventReplay = useRef(false);
 
   useEffect(() => {
     fetch("/api/session", { credentials: "same-origin" })
@@ -146,6 +158,32 @@ export function Console() {
     logRef.current?.scrollTo(0, logRef.current.scrollHeight);
   }, [logs]);
 
+  useEffect(() => {
+    const revise = [...events].reverse().find((event) => event.type === "revise.complete");
+    if (!revise || playedRevise.current === revise.at) return;
+    if ((state?.implementQueue?.length ?? 0) === 0) return;
+    playedRevise.current = revise.at;
+    if (suppressEventReplay.current) {
+      suppressEventReplay.current = false;
+      return;
+    }
+    const data = revise.data ?? {};
+    const reopened = typeof data.reopened === "number" ? data.reopened : 0;
+    const added = typeof data.addedScenarios === "number" ? data.addedScenarios : 0;
+    const unmapped = typeof data.unmapped === "number" ? data.unmapped : 0;
+    const moved = reopened + added;
+    if (moved <= 0) return;
+    setTransfer({
+      moved,
+      unmapped,
+      queued: state?.implementQueue?.length ?? 0,
+      token: Date.now(),
+      headline: `${reopened} scenario${reopened === 1 ? "" : "s"} reopened and ${added} added to the spec${
+        unmapped ? `. ${unmapped} stayed unmapped` : ""
+      }`,
+    });
+  }, [events, state?.implementQueue]);
+
   const runSelected = async () => {
     if (!token) return;
     setRunning(true);
@@ -167,8 +205,24 @@ export function Console() {
         harness,
         tier,
       });
-      await runAndParse(token, body, setLogs, setSpans);
+      const result = await runAndParse(token, body, setLogs, setSpans);
+      if (command === "revise") suppressEventReplay.current = true;
       await snapshot();
+      if (command === "revise") {
+        const moved = reviseTransfer(result);
+        if (moved && moved.moved > 0) {
+          const unmapped = moved.unmapped
+            ? `. ${moved.unmapped} stayed unmapped`
+            : "";
+          setTransfer({
+            ...moved,
+            token: Date.now(),
+            headline: `${moved.moved} finding${moved.moved === 1 ? "" : "s"} moved from review into the spec${unmapped}`,
+          });
+          setCommand("implement");
+          setLibraryTab("artifacts");
+        }
+      }
     } catch (err) {
       setRunError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -204,25 +258,7 @@ export function Console() {
     }
   };
 
-  const pauseLabel = useMemo(() => {
-    if (!state) return "No work item yet — run intake.";
-    if (state.pipelineStatus === "red") return "Pipeline red — only fix is legal.";
-    if (state.awaitingGuidance) {
-      return `Needs guidance on ${state.awaitingGuidance}. Use amend + note.`;
-    }
-    if (state.awaitingApproval) {
-      return `Awaiting approval of ${state.awaitingApproval}. Approve, reject, or amend.`;
-    }
-    if (state.completedStages.includes(state.currentStage)) {
-      const next = isStageName(state.currentStage)
-        ? nextPipelineStage(state.currentStage)
-        : null;
-      return next
-        ? `${state.currentStage} is approved. Pipeline ${state.pipelineStatus}. Next: ${next}.`
-        : `${state.currentStage} is approved. Pipeline ${state.pipelineStatus}.`;
-    }
-    return `Current stage: ${state.currentStage} (${state.pipelineStatus}).`;
-  }, [state]);
+  const suggestion = useMemo(() => suggestNextCommand(state), [state]);
 
   if (bootError) {
     return (
@@ -267,6 +303,8 @@ export function Console() {
           state={state}
           selected={command}
           selectedStage={stageArg}
+          suggestion={suggestion}
+          transfer={transfer}
           onPick={(pick) => {
             if (COMMANDS.includes(pick.command as Command)) {
               setCommand(pick.command as Command);
@@ -274,6 +312,26 @@ export function Console() {
             if (pick.stage) setStageArg(pick.stage);
           }}
         />
+        <div className="next-step">
+          <span>Next</span>
+          <button
+            type="button"
+            title="Selects this command in Drive CLI. Does not run it."
+            onClick={() => {
+              if (COMMANDS.includes(suggestion.command as Command)) {
+                setCommand(suggestion.command as Command);
+              }
+              if (suggestion.stage) setStageArg(suggestion.stage);
+              commandRef.current?.scrollIntoView({ block: "nearest" });
+            }}
+          >
+            {suggestion.label}
+          </button>
+          <p>
+            {transfer ? `${transfer.headline}. ` : null}
+            {suggestion.detail}
+          </p>
+        </div>
         <div className="legend">
           <span className="l-done">completed</span>
           <span className="l-now">current</span>
@@ -283,10 +341,7 @@ export function Console() {
         </div>
       </section>
 
-      <div className={`banner ${state?.pipelineStatus === "red" ? "err" : state?.awaitingGuidance || state?.awaitingApproval ? "warn" : ""}`}>
-        {pauseLabel}
-        {state?.lastError ? ` — ${state.lastError}` : ""}
-      </div>
+      {state?.lastError ? <div className="banner err">{state.lastError}</div> : null}
 
       <div className="main">
         <aside className="panel drive-panel">
@@ -306,6 +361,7 @@ export function Console() {
             <label>
               Command
               <select
+                ref={commandRef}
                 value={command}
                 onChange={(e) => setCommand(e.target.value as Command)}
               >

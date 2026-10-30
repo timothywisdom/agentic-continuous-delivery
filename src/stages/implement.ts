@@ -3,7 +3,12 @@ import { dirname, join } from "node:path";
 import { z } from "zod";
 import { runGenerativeRole } from "../orchestrator/gates.js";
 import type { StageContext, StageDef } from "../orchestrator/index.js";
-import { packContext } from "../packer/context.js";
+import {
+  contextNeededPath,
+  packContext,
+  resolveRepoPath,
+  type ContextPack,
+} from "../packer/context.js";
 import { implementInputSchema, implementOutputSchema } from "../schemas/zod.js";
 import {
   parseScenarios,
@@ -155,41 +160,37 @@ async function implementOneScenario(
   }
 
   const dir = workDir(ctx.repoRoot, workId);
-  const pack = packContext(ctx.repoRoot, dir, scenario);
   const criteria = criteriaFor(job, failedDetail);
-
-  const generated = implSchema.parse(
-    await runGenerativeRole(
-      ctx.config,
-      "implement",
-      "implementation",
-      "implement-scenario",
-      {
-        intentSummary: pack.intentSummary,
-        feature: pack.feature,
-        scenario: pack.scenario.body,
-        priorSummary: pack.priorSummary,
-        files: pack.files,
-        scenarioIndex: scenario.index,
-        reviewBrief: job?.brief ?? "",
-        implementMode: job?.mode ?? "new",
-      },
-      ctx.overrides,
-      criteria,
-    ),
-  );
+  let pack = packContext(ctx.repoRoot, dir, scenario);
+  let generated = await generateScenario(ctx, pack, scenario.index, job, criteria);
 
   if (generated.contextNeeded) {
-    throw new Error(`CONTEXT_NEEDED: ${generated.contextNeeded}`);
+    const asked = contextNeededPath(generated.contextNeeded);
+    const safe = asked ? resolveRepoPath(ctx.repoRoot, asked) : null;
+    const already = safe != null && pack.files.some((file) => file.path === safe);
+    if (safe && !already) {
+      pack = packContext(ctx.repoRoot, dir, scenario, [safe]);
+      generated = await generateScenario(ctx, pack, scenario.index, job, criteria);
+    }
+  }
+  if (generated.contextNeeded) {
+    const detail = generated.contextNeeded.replace(/^\s*CONTEXT_NEEDED:\s*/i, "");
+    throw new Error(`CONTEXT_NEEDED: ${detail}`);
   }
 
   const filesTouched: string[] = [];
   for (const file of generated.files ?? []) {
     if (!file.content) continue;
-    const abs = join(ctx.repoRoot, file.path);
+    const rel = resolveRepoPath(ctx.repoRoot, file.path);
+    if (!rel) {
+      throw new Error(
+        `Implement returned a path outside the repo: ${file.path}`,
+      );
+    }
+    const abs = join(ctx.repoRoot, rel);
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, file.content);
-    filesTouched.push(file.path);
+    filesTouched.push(rel);
   }
 
   const testsAdded = generated.tests ?? [];
@@ -210,6 +211,36 @@ async function implementOneScenario(
     concern: generated.concern ?? null,
     mode: job?.mode ?? "new",
   });
+}
+
+async function generateScenario(
+  ctx: StageContext,
+  pack: ContextPack,
+  scenarioIndex: number,
+  job: ImplementJob | undefined,
+  criteria: string,
+) {
+  return implSchema.parse(
+    await runGenerativeRole(
+      ctx.config,
+      "implement",
+      "implementation",
+      "implement-scenario",
+      {
+        intentSummary: pack.intentSummary,
+        feature: pack.feature,
+        scenario: pack.scenario.body,
+        priorSummary: pack.priorSummary,
+        files: pack.files,
+        omittedFiles: pack.omitted,
+        scenarioIndex,
+        reviewBrief: job?.brief ?? "",
+        implementMode: job?.mode ?? "new",
+      },
+      ctx.overrides,
+      criteria,
+    ),
+  );
 }
 
 function criteriaFor(
