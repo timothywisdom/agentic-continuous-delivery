@@ -9,4 +9,4 @@ Inputs: BDD scenario and test files in the diff.
 
 For each Given/When/Then, find a corresponding assertion. Missing coverage or weakened assertions are findings.
 
-Return standard review JSON.
+Return JSON with `decision` (`pass` or `block`) and `findings` (`file`, `line`, `issue`, `why`). Do not use `verdict`.

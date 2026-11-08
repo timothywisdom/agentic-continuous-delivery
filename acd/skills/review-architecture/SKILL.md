@@ -7,4 +7,4 @@ description: Verify the implementation follows musts and must-nots in the featur
 
 Inputs: diff + feature description.
 
-Return standard review JSON.
+Return JSON with `decision` (`pass` or `block`) and `findings` (`file`, `line`, `issue`, `why`). Do not use `verdict`.

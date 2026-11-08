@@ -27,6 +27,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:calculator": "npm run build && node ./bin/acd.js ui --repo-root ../calculator",
     "prepare": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",

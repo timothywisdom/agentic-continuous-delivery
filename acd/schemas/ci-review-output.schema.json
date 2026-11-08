@@ -41,7 +41,8 @@
             "type": "string",
             "enum": [
               "pass",
-              "block"
+              "block",
+              "advisory"
             ]
           }
         },
@@ -96,7 +97,8 @@
                 "type": "string",
                 "enum": [
                   "pass",
-                  "block"
+                  "block",
+                  "advisory"
                 ]
               }
             },
@@ -142,7 +144,8 @@
                 "type": "string",
                 "enum": [
                   "pass",
-                  "block"
+                  "block",
+                  "advisory"
                 ]
               }
             },
@@ -188,7 +191,8 @@
                 "type": "string",
                 "enum": [
                   "pass",
-                  "block"
+                  "block",
+                  "advisory"
                 ]
               }
             },

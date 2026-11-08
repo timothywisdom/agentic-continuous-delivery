@@ -28,6 +28,26 @@ function stubPayload(request: HarnessRunRequest): unknown {
         decision: "pass",
         findings: [],
       };
+    case "revise_behavior": {
+      const findings = Array.isArray(input.findings) ? input.findings : [];
+      return {
+        scenarios: findings.map((finding) => {
+          const row = finding as { key?: string; issue?: string };
+          const title = desiredTitle(String(row.issue ?? "the requested behavior"));
+          return {
+            title,
+            gherkin: [
+              `Scenario: 1. ${title}`,
+              "    When I press the control",
+              "    Then the display shows the result",
+            ].join("\n"),
+            findingKeys: row.key ? [row.key] : [],
+          };
+        }),
+        musts: [],
+        rejected: [],
+      };
+    }
     case "implementation":
       return {
         files: [],
@@ -62,6 +82,15 @@ function stubPayload(request: HarnessRunRequest): unknown {
     default:
       return { decision: "pass", findings: [] };
   }
+}
+
+function desiredTitle(issue: string): string {
+  const cleaned = issue
+    .replace(/\b(missing|no|not|without|instead)\b/gi, " ")
+    .replace(/[^a-z0-9 ]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.slice(0, 60) || "Observable outcome";
 }
 
 function stubBehavior(source: string): string {

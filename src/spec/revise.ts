@@ -1,12 +1,11 @@
 import { createHash } from "node:crypto";
 import type { ImplementJob, ReviewFinding } from "../types/work.js";
-import { nextEvaluationLabel, parseScenarios, type Scenario } from "./gherkin.js";
+import { parseScenarios, type Scenario } from "./gherkin.js";
 import { slugsMatch } from "./scenario-tests.js";
 import { slugify } from "../work/store.js";
 
 const OBSERVABLE =
   /\b(display|user|error|page|button|keyboard|layout|visible|message|screen)\b/i;
-const MUST_NOT = /\bmust not\b|\bdo not\b|\bshould not\b/i;
 const SCENARIO_REF = /Scenario(?:\s+Outline)?\s*:?\s*(E\d+[A-Za-z]*|\d+)/i;
 
 export interface RevisePlan {
@@ -16,11 +15,18 @@ export interface RevisePlan {
   implementQueue: ImplementJob[];
   absorbedKeys: string[];
   reopened: { index: number; title: string; mode: "fidelity"; count: number }[];
+  /** Filled by the stage after revise-behavior drafts observable scenarios. */
   addedScenarios: { index: number; title: string; agent: string }[];
   constraints: { section: "must" | "must-not"; issue: string }[];
   acceptanceRows: number;
   notes: { agent: string; issue: string }[];
   unmapped: { agent: string; file: string; issue: string }[];
+  /** Product findings a model may draft as observable scenarios. Not written here. */
+  behaviorDrafts: ReviewFinding[];
+  /** Dependency approval, logging policy, coverage process. A human decides. */
+  policyQuestions: ReviewFinding[];
+  /** Would remove or contradict behavior already in the spec. A human decides. */
+  guidanceQuestions: ReviewFinding[];
 }
 
 export function findingKey(finding: ReviewFinding): string {
@@ -60,44 +66,57 @@ export function planRevision(input: {
   };
 
   const fidelityGroups = new Map<number, ReviewFinding[]>();
-  const behaviorAdds: ReviewFinding[] = [];
-  const constraintAdds: ReviewFinding[] = [];
+  const behaviorDrafts: ReviewFinding[] = [];
+  const policyQuestions: ReviewFinding[] = [];
+  const guidanceQuestions: ReviewFinding[] = [];
 
   for (const finding of input.findings) {
     if (finding.decision !== "block") continue;
     const key = findingKey(finding);
     if (applied(key)) continue;
-    const kind = classify(finding.agent);
-    if (kind === "fidelity") {
-      const index = matchScenario(finding, parseScenarios(behavior));
-      if (index == null) {
-        unmapped.push({
-          agent: finding.agent,
-          file: finding.file,
-          issue: finding.issue,
-        });
-        continue;
-      }
-      const group = fidelityGroups.get(index) ?? [];
+    const route = routeFinding(finding, parseScenarios(behavior));
+    if (route.kind === "fidelity") {
+      const group = fidelityGroups.get(route.index) ?? [];
       group.push(finding);
-      fidelityGroups.set(index, group);
+      fidelityGroups.set(route.index, group);
       continue;
     }
-    if (kind === "quality" && !observable(finding)) {
-      notes.push({ agent: finding.agent, issue: finding.issue });
+    if (route.kind === "cleanup") {
+      jobs.push({
+        index: 0,
+        mode: "cleanup",
+        file: finding.file,
+        brief: cleanupBrief(finding),
+      });
       remember(key);
       continue;
     }
-    if (kind === "other") {
-      notes.push({ agent: finding.agent, issue: finding.issue });
+    if (route.kind === "policy") {
+      policyQuestions.push(finding);
       remember(key);
       continue;
     }
-    if (kind === "behavior") {
-      behaviorAdds.push(finding);
+    if (route.kind === "guidance") {
+      guidanceQuestions.push(finding);
+      remember(key);
       continue;
     }
-    constraintAdds.push(finding);
+    if (route.kind === "draft") {
+      behaviorDrafts.push(finding);
+      continue;
+    }
+    if (route.kind === "fix") {
+      jobs.push({
+        index: route.index,
+        mode: "fix",
+        ...(route.index === 0 ? { file: finding.file } : {}),
+        brief: fixBrief(finding),
+      });
+      remember(key);
+      continue;
+    }
+    notes.push({ agent: finding.agent, issue: finding.issue });
+    remember(key);
   }
 
   for (const [index, group] of [...fidelityGroups.entries()].sort(
@@ -123,34 +142,7 @@ export function planRevision(input: {
     });
   }
 
-  let next = nextScenarioIndex(behavior);
-  for (const finding of [...behaviorAdds, ...constraintAdds]) {
-    const key = findingKey(finding);
-    const title = scenarioTitle(finding.issue);
-    const existing = parseScenarios(behavior);
-    const label = nextEvaluationLabel(existing) ?? String(next);
-    behavior = `${behavior.trimEnd()}\n\n${scenarioBlock(label, title, key, finding.issue)}\n`;
-    acceptance = appendAcceptance(
-      acceptance,
-      `- [ ] Scenario ${label}: ${title} <!-- acd-review:${key} -->`,
-    );
-    acceptanceRows += 1;
-    if (constraintAdds.includes(finding)) {
-      const section = sectionFor(finding);
-      feature = insertBullet(
-        feature,
-        section,
-        `- ${oneLine(finding.issue, 400)} <!-- acd-review:${key} -->`,
-      );
-      constraints.push({ section, issue: finding.issue });
-    }
-    jobs.push({ index: next, mode: "new", brief: newBrief(finding) });
-    addedScenarios.push({ index: next, title, agent: finding.agent });
-    remember(key);
-    next += 1;
-  }
-
-  jobs.sort((a, b) => a.index - b.index);
+  jobs.sort((a, b) => a.index - b.index || a.brief.localeCompare(b.brief));
 
   return {
     behavior,
@@ -164,7 +156,46 @@ export function planRevision(input: {
     acceptanceRows,
     notes,
     unmapped,
+    behaviorDrafts,
+    policyQuestions,
+    guidanceQuestions,
   };
+}
+
+const POLICY =
+  /\b(team approval|devdependency|new dependenc)/i;
+const LOGGING_POLICY = /\bstructured (operational )?log/i;
+const COVERAGE_PROCESS = /\bno acceptance test\b|\bcoverage\b/i;
+const UNSPECIFIED =
+  /\bnot defined in\b|\bnot specified\b|\bnot in the (spec|intent|behavior)\b|\babsent from the\b/i;
+
+type Route =
+  | { kind: "fidelity"; index: number }
+  | { kind: "cleanup" }
+  | { kind: "policy" }
+  | { kind: "guidance" }
+  | { kind: "draft" }
+  | { kind: "fix"; index: number }
+  | { kind: "note" };
+
+function routeFinding(finding: ReviewFinding, scenarios: Scenario[]): Route {
+  const kind = classify(finding.agent);
+  if (kind === "fidelity") {
+    const index = matchScenario(finding, scenarios);
+    return index == null ? { kind: "cleanup" } : { kind: "fidelity", index };
+  }
+  if (isPolicy(finding)) return { kind: "policy" };
+  if (UNSPECIFIED.test(finding.issue)) return { kind: "guidance" };
+  if (kind === "quality" && !observable(finding)) return { kind: "note" };
+  if (kind === "other") return { kind: "note" };
+  if (kind === "behavior" || observable(finding)) return { kind: "draft" };
+  const index = matchScenario(finding, scenarios);
+  return { kind: "fix", index: index ?? 0 };
+}
+
+function isPolicy(finding: ReviewFinding): boolean {
+  const text = `${finding.issue}\n${finding.why}`;
+  return POLICY.test(text) || LOGGING_POLICY.test(text) || COVERAGE_PROCESS.test(text);
 }
 
 function classify(
@@ -190,13 +221,7 @@ function classify(
 }
 
 function observable(finding: ReviewFinding): boolean {
-  return OBSERVABLE.test(`${finding.issue}\n${finding.why}`);
-}
-
-function sectionFor(finding: ReviewFinding): "must" | "must-not" {
-  if (finding.agent === "security") return "must-not";
-  if (MUST_NOT.test(`${finding.issue}\n${finding.why}`)) return "must-not";
-  return "must";
+  return OBSERVABLE.test(finding.issue);
 }
 
 export function matchScenario(
@@ -236,12 +261,6 @@ export function matchScenario(
   return best?.index ?? null;
 }
 
-function nextScenarioIndex(behavior: string): number {
-  const scenarios = parseScenarios(behavior);
-  const max = scenarios.reduce((n, s) => Math.max(n, s.index), 0);
-  return max + 1;
-}
-
 function markScenario(behavior: string, index: number, key: string): string {
   const marker = `# acd-review:${key}`;
   if (behavior.includes(marker)) return behavior;
@@ -255,24 +274,22 @@ function markScenario(behavior: string, index: number, key: string): string {
   );
 }
 
-function scenarioBlock(
-  label: string,
-  title: string,
-  key: string,
-  issue: string,
-): string {
+function cleanupBrief(finding: ReviewFinding): string {
   return [
-    `  # acd-review:${key}`,
-    `  Scenario: ${label}. ${title}`,
-    "    Given the behavior recorded for this work item",
-    "    When the reviewed condition is exercised",
-    `    Then the issue does not recur: ${oneLine(issue, 240)}`,
+    "Delete this orphan test file. Do not change product code.",
+    `File: ${finding.file}`,
+    `Issue: ${oneLine(finding.issue, 400)}`,
   ].join("\n");
 }
 
-function scenarioTitle(issue: string): string {
-  const title = oneLine(issue, 72).replace(/#/g, "");
-  return title || "Review follow-up";
+function fixBrief(finding: ReviewFinding): string {
+  return [
+    "Fix this in product code. Do not weaken or delete tests. Existing scenario tests must stay green.",
+    `Issue: ${oneLine(finding.issue, 400)}`,
+    finding.why ? `Why: ${oneLine(finding.why, 300)}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function fidelityBrief(findings: ReviewFinding[]): string {
@@ -289,48 +306,9 @@ function fidelityBrief(findings: ReviewFinding[]): string {
   ].join("\n");
 }
 
-function newBrief(finding: ReviewFinding): string {
-  return [
-    `This scenario was added from a ${finding.agent} review finding. Write the acceptance test first, then the product code.`,
-    `Issue: ${oneLine(finding.issue, 400)}`,
-    finding.why ? `Why: ${oneLine(finding.why, 300)}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
 function oneLine(text: string, max: number): string {
   const flat = text.replace(/\s+/g, " ").trim();
   if (flat.length <= max) return flat;
   return `${flat.slice(0, max - 1)}…`;
 }
 
-function insertBullet(
-  markdown: string,
-  section: "must" | "must-not",
-  bullet: string,
-): string {
-  const re =
-    section === "must"
-      ? /^#{2,3} musts\s*$/im
-      : /^#{2,3} must[- ]?nots\s*$/im;
-  const match = re.exec(markdown);
-  if (!match) {
-    const heading = section === "must" ? "## Musts" : "## Must nots";
-    return `${markdown.trimEnd()}\n\n${heading}\n\n${bullet}\n`;
-  }
-  const start = match.index + match[0].length;
-  const rest = markdown.slice(start);
-  const next = rest.search(/\n#{2,3} /);
-  const insertAt = next === -1 ? markdown.length : start + next;
-  const before = markdown.slice(0, insertAt).trimEnd();
-  const after = markdown.slice(insertAt);
-  return `${before}\n${bullet}\n${after.startsWith("\n") ? after : `\n${after}`}`;
-}
-
-function appendAcceptance(markdown: string, row: string): string {
-  if (!/^#{2,3} Review follow-ups\s*$/im.test(markdown)) {
-    return `${markdown.trimEnd()}\n\n## Review follow-ups\n\n${row}\n`;
-  }
-  return `${markdown.trimEnd()}\n${row}\n`;
-}

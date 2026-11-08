@@ -13,6 +13,7 @@ import {
 } from "../work/store.js";
 import { systemConstraintsCandidates } from "../paths.js";
 import { kitDir } from "../config/load.js";
+import { gitRev } from "../hooks/mechanical.js";
 
 export const intakeStage: StageDef<IntakeInput, IntakeOutput> = {
   name: "intake",
@@ -35,6 +36,8 @@ export const intakeStage: StageDef<IntakeInput, IntakeOutput> = {
       currentScenario: null,
       implementQueue: null,
       absorbedReviewFindings: [],
+      baseSha: gitRev(ctx.repoRoot),
+      reviewSha: null,
       lastError: null,
       lastStageOutput: null,
       approvedStages: [],

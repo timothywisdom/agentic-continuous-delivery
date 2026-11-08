@@ -28,6 +28,7 @@ const DEFAULT_ROLE_TIERS: Record<AgentRole, ModelTier> = {
   architectural_conformance: "med",
   intent_alignment: "high",
   constraint_compliance: "med",
+  revise_behavior: "med",
 };
 
 export function stageRequiresHumanApproval(

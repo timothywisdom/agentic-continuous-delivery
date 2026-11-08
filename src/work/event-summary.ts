@@ -63,7 +63,11 @@ export function summarizeEvent(event: {
     case "revise.complete": {
       const added = typeof data.addedScenarios === "number" ? data.addedScenarios : 0;
       const reopened = typeof data.reopened === "number" ? data.reopened : 0;
-      return `revised spec; ${added} new scenario${added === 1 ? "" : "s"}, ${reopened} reopened`;
+      const questions =
+        (typeof data.policyQuestions === "number" ? data.policyQuestions : 0) +
+        (typeof data.guidanceQuestions === "number" ? data.guidanceQuestions : 0);
+      const asked = questions > 0 ? `, ${questions} need a decision` : "";
+      return `revised spec; ${added} new scenario${added === 1 ? "" : "s"}, ${reopened} reopened${asked}`;
     }
     case "pr.opened":
       return typeof data.url === "string" && data.url

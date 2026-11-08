@@ -11,9 +11,14 @@ export interface RejectionRecord {
 /** One scenario `acd implement` should revisit after `acd revise`. */
 export interface ImplementJob {
   index: number;
-  /** `fidelity` rewrites the test. `new` writes a test only when none exists. */
-  mode: "new" | "fidelity";
+  /**
+   * `fidelity` rewrites the test. `new` writes a test only when none exists.
+   * `fix` changes product code under an existing scenario. `cleanup` deletes an orphan test file.
+   */
+  mode: "new" | "fidelity" | "fix" | "cleanup";
   brief: string;
+  /** Repo-relative file for a `cleanup` job, or a `fix` job that matches no scenario. */
+  file?: string;
 }
 
 export interface WorkState {
@@ -33,6 +38,10 @@ export interface WorkState {
   implementQueue: ImplementJob[] | null;
   /** Finding keys already folded into the spec, so revise does not repeat them. */
   absorbedReviewFindings: string[];
+  /** HEAD at intake. Review cycle 1 diffs against this commit. */
+  baseSha?: string | null;
+  /** HEAD at the last completed review. Later cycles diff against this commit. */
+  reviewSha?: string | null;
   lastError: string | null;
   lastStageOutput: Record<string, unknown> | null;
   approvedStages: StageName[];
@@ -106,7 +115,7 @@ export interface ReviewFinding {
   line: number | null;
   issue: string;
   why: string;
-  decision: "pass" | "block";
+  decision: "pass" | "block" | "advisory";
 }
 
 export interface ReviewDeltaSummary {

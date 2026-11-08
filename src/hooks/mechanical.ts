@@ -7,7 +7,15 @@ import { systemConstraintsCandidates } from "../paths.js";
 export interface MechanicalResult {
   name: string;
   ok: boolean;
+  /** The command was not run. `ok` stays true so a skip cannot block review. */
+  skipped?: boolean;
   detail?: string;
+}
+
+export interface ChangedSpan {
+  path: string;
+  /** New-file line numbers touched by a hunk. Empty means the whole file changed. */
+  lines: number[];
 }
 
 export function runCommand(
@@ -43,10 +51,33 @@ export function runMechanicalHooks(
   ];
   for (const [name, cmd] of checks) {
     if (!cmd) continue;
+    if (name === "lint" && !packageHasLintScript(repoRoot)) {
+      results.push({
+        name,
+        ok: true,
+        skipped: true,
+        detail: "No lint script in package.json; skipped.",
+      });
+      continue;
+    }
     const ran = runCommand(cmd, repoRoot);
     results.push({ name, ok: ran.ok, detail: ran.detail });
   }
   return results;
+}
+
+/** True when package.json exists and its scripts.lint entry is a non-empty string. */
+export function packageHasLintScript(repoRoot: string): boolean {
+  const path = join(repoRoot, "package.json");
+  if (!existsSync(path)) return false;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as {
+      scripts?: Record<string, unknown>;
+    };
+    return typeof parsed.scripts?.lint === "string" && parsed.scripts.lint.trim() !== "";
+  } catch {
+    return false;
+  }
 }
 
 export function runTests(
@@ -63,6 +94,59 @@ export function runTests(
   }
   const ran = runCommand(cmd, repoRoot);
   return { name: "test", ok: ran.ok, detail: ran.detail };
+}
+
+export function gitRev(repoRoot: string, rev = "HEAD"): string | null {
+  try {
+    const sha = execSync(`git rev-parse ${rev}`, {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+    return sha || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Working tree compared with `from`, so committed and uncommitted edits both count. */
+export function gitDiffRange(
+  repoRoot: string,
+  from: string | null,
+): { diff: string; files: ChangedSpan[] } {
+  if (!from) return { diff: "", files: [] };
+  try {
+    const diff = execSync(`git diff -U0 ${from}`, {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 20_000_000,
+    });
+    return { diff, files: parseChangedLines(diff) };
+  } catch {
+    return { diff: "", files: [] };
+  }
+}
+
+export function parseChangedLines(diff: string): ChangedSpan[] {
+  const spans: ChangedSpan[] = [];
+  let current: ChangedSpan | null = null;
+  for (const line of diff.split("\n")) {
+    const file = line.match(/^\+\+\+ b\/(.+)$/);
+    if (file?.[1] && file[1] !== "/dev/null") {
+      current = { path: file[1], lines: [] };
+      spans.push(current);
+      continue;
+    }
+    if (!current) continue;
+    const hunk = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+    if (!hunk) continue;
+    const start = Number(hunk[1]);
+    const count = hunk[2] === undefined ? 1 : Number(hunk[2]);
+    if (!Number.isFinite(start) || !Number.isFinite(count) || count <= 0) continue;
+    for (let i = 0; i < count; i++) current.lines.push(start + i);
+  }
+  return spans;
 }
 
 export function gitDiff(repoRoot: string): string {

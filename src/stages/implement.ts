@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { z } from "zod";
 import { runGenerativeRole } from "../orchestrator/gates.js";
@@ -35,6 +35,8 @@ const REPAIR_CRITERIA =
   "The acceptance test for this scenario failed. Change product code so it passes. Do not weaken or delete assertions. Return files/tests JSON.";
 const FIDELITY_CRITERIA =
   "Rewrite this scenario's acceptance test so it actually performs the Gherkin steps. Do not weaken assertions. Then change product code only as needed to make the stricter test pass. Return files/tests JSON.";
+const FIX_CRITERIA =
+  "Fix the reported product issue. Do not weaken or delete tests. Existing scenario tests must stay green. Return files/tests JSON.";
 
 type ScenarioRun = Omit<
   ImplementOutput,
@@ -66,23 +68,64 @@ export const implementStage: StageDef<ImplementInput, ImplementOutput> = {
     const { workId } = input;
     const raw = readArtifact(ctx.repoRoot, workId, "behavior.feature");
     const scenarios = parseScenarios(raw);
-    const jobs = new Map(
-      (ctx.state.implementQueue ?? []).map((job) => [job.index, job]),
-    );
+    const allJobs = ctx.state.implementQueue ?? [];
+    const jobs = new Map(allJobs.map((job) => [job.index, job]));
+    const fileJobs =
+      input.scenario == null
+        ? allJobs.filter(
+            (job) => job.mode === "cleanup" || (job.mode === "fix" && job.index === 0),
+          )
+        : [];
     const queued =
-      input.scenario == null && ctx.state.implementQueue
-        ? ctx.state.implementQueue.map((job) => job.index)
+      input.scenario == null && allJobs.length > 0
+        ? allJobs
+            .filter((job) => job.mode !== "cleanup" && job.index > 0)
+            .map((job) => job.index)
         : null;
+
+    const completed: number[] = [];
+    const skippedScenarios: number[] = [];
+    let last: ScenarioRun | undefined;
+
+    for (const job of fileJobs) {
+      logProgress(
+        job.mode === "cleanup"
+          ? `implement: cleanup ${job.file ?? job.brief}`
+          : `implement: fix ${job.file ?? "unscoped"}`,
+      );
+      last = await implementFileJob(workId, job, ctx);
+      if (last.pipelineStatus !== "green") break;
+    }
+
+    if (last && last.pipelineStatus !== "green") {
+      return {
+        ...last,
+        scenariosCompleted: completed,
+        remaining: readState(ctx.repoRoot, workId).implementQueue?.length ?? 0,
+        skippedScenarios,
+      };
+    }
+
+    if (queued && queued.length === 0) {
+      if (!last) {
+        throw new Error(
+          "No scenarios left in the review follow-up queue. Pass --scenario <id> to re-run one.",
+        );
+      }
+      return {
+        ...last,
+        scenariosCompleted: completed,
+        remaining: readState(ctx.repoRoot, workId).implementQueue?.length ?? 0,
+        skippedScenarios,
+      };
+    }
+
     const queue = selectImplementScenarios(
       scenarios,
       input.scenario,
       ctx.state.currentScenario,
       queued,
     );
-
-    const completed: number[] = [];
-    const skippedScenarios: number[] = [];
-    let last: ScenarioRun | undefined;
 
     for (const scenario of queue) {
       logProgress(
@@ -133,7 +176,7 @@ async function implementOneScenario(
       files.length > 0
         ? runScenarioTests(ctx.config, ctx.repoRoot, files)
         : { ok: false, detail: "", ran: false };
-    if (job.mode !== "fidelity" && probe.ran && probe.ok) {
+    if (job.mode !== "fidelity" && job.mode !== "fix" && probe.ran && probe.ok) {
       const suite = runTests(ctx.config, ctx.repoRoot);
       if (suite.ok) {
         return finishScenario(workId, scenario, ctx, {
@@ -210,7 +253,48 @@ async function implementOneScenario(
     testsOk: null,
     concern: generated.concern ?? null,
     mode: job?.mode ?? "new",
+    file: job?.file,
   });
+}
+
+async function implementFileJob(
+  workId: string,
+  job: ImplementJob,
+  ctx: StageContext,
+): Promise<ScenarioRun> {
+  const scenario: Scenario = {
+    index: 0,
+    label: "0",
+    title: job.file || (job.mode === "cleanup" ? "orphan test" : "review fix"),
+    heading: "",
+    body: job.brief,
+  };
+  if (job.mode === "cleanup") {
+    const removed = deleteOrphanTest(ctx.repoRoot, job.file);
+    return finishScenario(workId, scenario, ctx, {
+      filesTouched: removed ? [removed] : [],
+      testsAdded: [],
+      summary: removed
+        ? `Deleted orphan test ${removed}.\n`
+        : `Left ${job.file ?? "the file"} in place. Cleanup only deletes a test file inside the repo.\n`,
+      skipped: !removed,
+      testsOk: null,
+      concern: null,
+      mode: "cleanup",
+      file: job.file,
+    });
+  }
+  return implementOneScenario(workId, scenario, ctx, job, true);
+}
+
+function deleteOrphanTest(repoRoot: string, file: string | undefined): string | null {
+  if (!file || !/\.(test|spec)\.[^/]+$/.test(file)) return null;
+  const rel = resolveRepoPath(repoRoot, file);
+  if (!rel) return null;
+  const abs = join(repoRoot, rel);
+  if (!existsSync(abs)) return null;
+  unlinkSync(abs);
+  return rel;
 }
 
 async function generateScenario(
@@ -250,6 +334,7 @@ function criteriaFor(
   const brief = job?.brief ? `\n\n${job.brief}` : "";
   const failure = failedDetail ? `\n\nTest output:\n${failedDetail}` : "";
   if (job?.mode === "fidelity") return `${FIDELITY_CRITERIA}${brief}${failure}`;
+  if (job?.mode === "fix") return `${FIX_CRITERIA}${brief}${failure}`;
   if (failedDetail) return `${REPAIR_CRITERIA}${brief}${failure}`;
   return `${NEW_CRITERIA}${brief}`;
 }
@@ -267,6 +352,7 @@ function finishScenario(
     testsOk: boolean | null;
     concern: string | null;
     mode: ImplementJob["mode"];
+    file?: string;
   },
 ): ScenarioRun {
   const sessionName = `${String(scenario.index).padStart(3, "0")}-summary.md`;
@@ -288,7 +374,11 @@ function finishScenario(
     outcome.mode;
   const queue =
     testResult.ok && state.implementQueue
-      ? state.implementQueue.filter((job) => job.index !== scenario.index)
+      ? state.implementQueue.filter((job) => {
+          if (job.mode === "cleanup") return job.file !== outcome.file;
+          if (job.mode === "fix" && job.index === 0) return job.file !== outcome.file;
+          return job.index !== scenario.index;
+        })
       : state.implementQueue;
   state = {
     ...state,

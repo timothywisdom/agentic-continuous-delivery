@@ -173,6 +173,10 @@ agents:
   constraint_compliance:
     tier: med
 
+  # Draft positive, observable scenarios from product review findings. Never pastes the defect.
+  revise_behavior:
+    tier: med
+
 # -----------------------------------------------------------------------------
 # harnesses — named runtimes (label → driver + generative model map)
 # -----------------------------------------------------------------------------

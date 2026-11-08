@@ -109,8 +109,12 @@ export function ReviewPane({
       {selected.mechanical.length > 0 ? (
         <div className="review-checks">
           {selected.mechanical.map((check) => (
-            <span key={check.name} className={check.ok ? "ok" : "bad"} title={check.detail}>
-              {check.name} {check.ok ? "passed" : "failed"}
+            <span
+              key={check.name}
+              className={check.skipped ? "skipped" : check.ok ? "ok" : "bad"}
+              title={check.detail}
+            >
+              {check.name} {check.skipped ? "skipped" : check.ok ? "passed" : "failed"}
             </span>
           ))}
         </div>

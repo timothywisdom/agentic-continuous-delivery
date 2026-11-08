@@ -764,6 +764,12 @@ textarea {
   border-color: #6e3034;
 }
 
+.review-checks .skipped,
+.tag.advisory {
+  color: var(--muted);
+  border-color: var(--line);
+}
+
 .tag.new {
   color: var(--accent);
   border-color: #6a5420;

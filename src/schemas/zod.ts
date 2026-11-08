@@ -3,9 +3,10 @@ import { AGENT_ROLES, HITL_PRESETS, TIERS } from "../types/config.js";
 import { STAGE_NAMES } from "../types/stages.js";
 
 export const implementJobSchema = z.object({
-  index: z.number().int().positive(),
-  mode: z.enum(["new", "fidelity"]),
+  index: z.number().int().nonnegative(),
+  mode: z.enum(["new", "fidelity", "fix", "cleanup"]),
   brief: z.string(),
+  file: z.string().optional(),
 });
 
 export const stageNameSchema = z.enum(STAGE_NAMES);
@@ -104,6 +105,8 @@ export const workStateSchema = z.object({
   currentScenario: z.number().nullable(),
   implementQueue: z.array(implementJobSchema).nullable().default(null),
   absorbedReviewFindings: z.array(z.string()).default([]),
+  baseSha: z.string().nullable().default(null),
+  reviewSha: z.string().nullable().default(null),
   lastError: z.string().nullable(),
   lastStageOutput: z.record(z.unknown()).nullable(),
   approvedStages: z.array(stageNameSchema),
@@ -138,7 +141,7 @@ export const reviewFindingSchema = z.object({
   line: z.number().nullable(),
   issue: z.string(),
   why: z.string(),
-  decision: z.enum(["pass", "block"]),
+  decision: z.enum(["pass", "block", "advisory"]),
 });
 
 export const intakeInputSchema = z.object({
@@ -220,6 +223,7 @@ export const reviewOutputSchema = z.object({
     z.object({
       name: z.string(),
       ok: z.boolean(),
+      skipped: z.boolean().optional(),
       detail: z.string().optional(),
     }),
   ),

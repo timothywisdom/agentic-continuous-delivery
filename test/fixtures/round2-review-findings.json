@@ -1,0 +1,266 @@
+[
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/subtract-after-entering-the-minuend.test.js",
+    "line": 5,
+    "issue": "Scenario 3 (Subtract two whole numbers) uses When operands 100 and 23 and Then \"77\" instead of 20, 8, and \"12\".",
+    "why": "The test does not exercise the acceptance steps or expected display string, so regressions specific to the specified subtraction case would not be caught.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/subtract-after-entering-the-minuend.test.js",
+    "line": 6,
+    "issue": "Scenario 3 Background And the display shows an initial value of \"0\" has no assertion.",
+    "why": "A non-zero initial display would not fail the test even though the scenario assumes a clean open calculator.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/multiply-two-factors.test.js",
+    "line": 12,
+    "issue": "Scenario 4 (Multiply two whole numbers) enters \"8\" as the second factor instead of \"7\" and asserts \"48\" instead of \"42\".",
+    "why": "Acceptance When/Then steps and the canonical result for 6×7 are not verified.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/multiply-two-factors.test.js",
+    "line": 6,
+    "issue": "Scenario 4 Background initial display \"0\" is not asserted before When steps.",
+    "why": "Stale or non-zero starting state is not ruled out per Background.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/divide-with-a-clean-integer-quotient.test.js",
+    "line": 5,
+    "issue": "Scenario 5 is driven via createCalculator() API calls, not browser keypad presses after Background Given the calculator is open in the browser.",
+    "why": "DOM wiring for ÷, digits, and equals is not exercised, so the in-browser scenario path can break while this test passes.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/divide-with-decimal-operands-and-integer-quotient.test.js",
+    "line": 8,
+    "issue": "Scenario 6 uses operands 7.5 and 2.5 with Then \"3\" instead of 8.4, 0.7, and \"12\".",
+    "why": "The acceptance decimal-division example and expected display are not covered.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/decimal-addition.test.js",
+    "line": 5,
+    "issue": "Scenario 7 matches operand steps but runs against createCalculator() rather than the open browser keypad.",
+    "why": "Background requires an in-browser calculator; the test skips page load and button activation.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/chain-operations-with-equals-applying-left-to-right.test.js",
+    "line": 5,
+    "issue": "No test implements Scenario 8 (Chain a second operation after equals): this file evaluates 10+5−3= with Then \"12\" instead of 10+5=15 then ×2=30.",
+    "why": "Chaining after equals (E7) is a must-have behavior with no faithful When/Then coverage; the existing test validates a different expression pattern.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/clear-resets-the-current-entry-and-pending-operation.test.js",
+    "line": 8,
+    "issue": "Scenario 10 (Clear during mid-expression) is not exercised: When uses 999+1+Clear instead of 12+7+Clear and adds unrelated follow-on calculation Then \"4\".",
+    "why": "The specified mid-expression operands and single Then \"0\" are omitted, and extra steps weaken fidelity to Scenario 10.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance",
+    "line": 0,
+    "issue": "Scenario 11 (Clear immediately after selecting an operator: 12, +, Clear → \"0\") has no acceptance test.",
+    "why": "Clear-after-operator-only reset (E8c) is untested, so that recovery path can regress silently.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance",
+    "line": 0,
+    "issue": "Scenario 12 (Clear after a completed calculation: 3+4=7 then Clear → \"0\") has no acceptance test.",
+    "why": "Post-result Clear (E8d) is required by behavior but has no corresponding When/Then assertions.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/divide-by-zero-shows-a-clear-error-state.test.js",
+    "line": 5,
+    "issue": "Scenario 13 is not run in the browser; it uses createCalculator() only.",
+    "why": "Background and When steps describe keypad use in the browser; the test does not load the page or click controls.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/divide-by-zero-shows-a-clear-error-state.test.js",
+    "line": 22,
+    "issue": "Scenario 13 Then divide-by-zero indication is weakened to /divid/i and generic /invalid|cannot|error/i instead of plain-language divide-by-zero (e.g. divide and zero).",
+    "why": "Messages that mention division but not zero, or vague errors, could pass while failing acceptance message criteria.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/divide-by-zero-shows-a-clear-error-state.test.js",
+    "line": 18,
+    "issue": "Scenario 13 And the calculator layout remains usable and readable has no assertion.",
+    "why": "Layout breakage on divide-by-zero error states would not be detected.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance",
+    "line": 0,
+    "issue": "Scenario 14 (Clear after divide-by-zero in the browser with full divide-by-zero message Then before Clear) has no dedicated Playwright test.",
+    "why": "Recovery is only partially covered inside other tests with weaker message checks; Scenario 14’s standalone Then/When sequence is not faithfully asserted end-to-end in the UI.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance/normal-calculation-after-divide-by-zero-recovery.test.js",
+    "line": 105,
+    "issue": "Scenario 15 Given divide-by-zero message criteria are weakened to assert.match(/divid/i) without requiring zero or equivalent wording.",
+    "why": "The precondition that recovery followed a proper divide-by-zero message may be false while the test still proceeds.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance",
+    "line": 0,
+    "issue": "Scenario 18 (Normal calculation after overflow recovery: Given display \"0\" after Clear, then 3+4=7) has no acceptance test file.",
+    "why": "E11c follow-on success after overflow Clear is specified in behavior but completely untested.",
+    "decision": "block"
+  },
+  {
+    "agent": "test_fidelity",
+    "file": "tests/acceptance",
+    "line": 0,
+    "issue": "Scenario 23 (Normal calculation after non-integer quotient recovery) has no acceptance test file.",
+    "why": "E14c requires 3+4=7 after Clear from a non-integer-quotient message; without a test, post-recovery calculation can regress.",
+    "decision": "block"
+  },
+  {
+    "agent": "implementation_coupling",
+    "file": "tests/acceptance/subtract-after-entering-the-minuend.test.js",
+    "line": 3,
+    "issue": "Acceptance scenarios in subtract-after-entering-the-minuend.test.js, multiply-two-factors.test.js, divide-with-a-clean-integer-quotient.test.js, decimal-addition.test.js, decimal-subtraction.test.js, decimal-multiplication.test.js, divide-with-decimal-operands-and-integer-quotient.test.js, second-operand-after-an-operator.test.js, chain-operations-with-equals-applying-left-to-right.test.js, clear-resets-the-current-entry-and-pending-operation.test.js, divide-by-zero-shows-a-clear-error-state.test.js, and repeated-equals-repeats-the-last-operation.test.js are driven through createCalculator() and press*/enter/getDisplay instead of loading the page and activating keypad controls.",
+    "why": "Inlining logic in the page, renaming or removing the exported factory, or moving formatting into the DOM layer would break these tests while user-visible calculator behavior could remain correct.",
+    "decision": "block"
+  },
+  {
+    "agent": "implementation_coupling",
+    "file": "tests/acceptance/decimal-point-entry-via-pointer.test.js",
+    "line": 12,
+    "issue": "Pointer decimal entry is simulated with calculator.pressDecimal() rather than clicking the on-screen decimal control in a browser session.",
+    "why": "A refactor that wires the decimal button only in the DOM without a pressDecimal() seam would fail this test despite correct 0.5 display behavior from the user's perspective.",
+    "decision": "block"
+  },
+  {
+    "agent": "implementation_coupling",
+    "file": "tests/acceptance/pointer-parity-from-clean-display-for-each-digit-and-equals.test.js",
+    "line": 32,
+    "issue": "Pointer parity uses clickOnScreenControl() that calls calculator.enter() and calculator.pressEquals(), not pointer activation on live DOM buttons.",
+    "why": "Refactoring click handlers to update the display without going through the exported calculator API would break parity tests even when on-screen clicks still behave correctly.",
+    "decision": "block"
+  },
+  {
+    "agent": "implementation_coupling",
+    "file": "tests/acceptance/pointer-parity-from-clean-display-for-each-digit-and-equals.test.js",
+    "line": 25,
+    "issue": "pageHasOnScreenButton() asserts raw index.html matches a fixed <button>…label…</button> regex instead of visible controls in a loaded page.",
+    "why": "Accessible markup (aria-label-only buttons, icons, or non-button elements) could satisfy users while failing this structural HTML assertion.",
+    "decision": "block"
+  },
+  {
+    "agent": "implementation_coupling",
+    "file": "tests/acceptance/keyboard-parity-from-clean-display-for-each-digit-and-equals.test.js",
+    "line": 41,
+    "issue": "Keyboard parity calls calculator.pressKeyboardKey(label) instead of dispatching keyboard events against the loaded calculator page.",
+    "why": "Moving keyboard handling entirely into index.html without a pressKeyboardKey seam preserves user behavior but breaks these tests.",
+    "decision": "block"
+  },
+  {
+    "agent": "implementation_coupling",
+    "file": "tests/acceptance/keyboard-parity-from-clean-display-for-each-digit-and-equals.test.js",
+    "line": 25,
+    "issue": "pageHasOnScreenButton() asserts raw index.html matches a fixed <button>…label…</button> regex.",
+    "why": "Markup refactors that keep keyboard and pointer affordances observable in the browser could fail this static HTML shape check.",
+    "decision": "block"
+  },
+  {
+    "agent": "architectural_conformance",
+    "file": "calculator.js",
+    "line": 19,
+    "issue": "After E9 divide-by-zero, E11 overflow, or E14 non-integer-quotient messages, digit entry replaces the message and resumes calculation without pressing Clear.",
+    "why": "Feature musts require that normal entry after those messages resume only via Clear (E10a/E10b, E11b/E11c, E14b/E14c). enterDigit treats startingNewEntry after pressEquals like a normal fresh operand, so typing a digit (e.g. after \"Cannot divide by zero\") shows a numeric display and allows further operations without Clear—an alternate recovery path not defined in acceptance.",
+    "decision": "block"
+  },
+  {
+    "agent": "architectural_conformance",
+    "file": "calculator.js",
+    "line": 65,
+    "issue": "pressDecimal appends \".\" to error/out-of-scope display strings instead of requiring Clear first.",
+    "why": "Feature musts specify Clear as the only recovery control after E9, E11, and E14 messages. pressDecimal unconditionally mutates display (e.g. \"Cannot divide by zero.\"), which is neither the held error state nor a Clear reset to \"0\" per E10/E11b/E14b.",
+    "decision": "block"
+  },
+  {
+    "agent": "constraint_compliance",
+    "file": "calculator.js",
+    "line": 13,
+    "issue": "enter() forwards every character to enterDigit without validating digits or decimal separators.",
+    "why": "Violates system constraint that all user input must be sanitized; non-numeric strings (e.g. enter('ab')) can appear on the display and reach Number() during evaluation.",
+    "decision": "block"
+  },
+  {
+    "agent": "constraint_compliance",
+    "file": "calculator.js",
+    "line": 19,
+    "issue": "enterDigit() does not restrict input to numeric digit characters.",
+    "why": "Any single character can become display content, bypassing the sanitization applied on the keyboard path in pressKeyboardKey().",
+    "decision": "block"
+  },
+  {
+    "agent": "constraint_compliance",
+    "file": "calculator.js",
+    "line": 65,
+    "issue": "pressDecimal() appends a decimal point with no validation of existing entry.",
+    "why": "Unsanitized decimal input allows malformed values (e.g. repeated '.' segments), conflicting with the requirement to sanitize all user input before it affects calculator state.",
+    "decision": "block"
+  },
+  {
+    "agent": "constraint_compliance",
+    "file": "package.json",
+    "line": 8,
+    "issue": "playwright devDependency is present with no recorded team approval for a new dependency.",
+    "why": "Violates architecture constraint that all new dependencies require team approval; acceptance tests import playwright across multiple files.",
+    "decision": "block"
+  },
+  {
+    "agent": "constraint_compliance",
+    "file": "calculator.js",
+    "line": 93,
+    "issue": "Error and out-of-scope outcomes (divide-by-zero, overflow, non-integer quotient) update display text only with no structured operational logging.",
+    "why": "Violates operations constraint to log structured data rather than relying solely on user-visible strings; observability and downstream audit of these paths cannot use structured events.",
+    "decision": "block"
+  },
+  {
+    "agent": "constraint_compliance",
+    "file": "calculator.js",
+    "line": 131,
+    "issue": "pressEquals() implements repeated-equals (lastOperator / lastRightOperand) behavior not defined in the supplied intent or behavior artifacts.",
+    "why": "Violates acd rule that feature description wins over implementation and agents must not extend behavior beyond artifact authority.",
+    "decision": "block"
+  },
+  {
+    "agent": "constraint_compliance",
+    "file": "tests/acceptance",
+    "line": 1,
+    "issue": "No acceptance test covers behavior Scenario 23 (normal calculation after non-integer quotient recovery) or several other Clear-recovery scenarios (e.g. 10, 11, 12, 14, 18).",
+    "why": "Violates operations constraint that agent-generated changes must include tests for each implemented behavior scenario; gaps leave specified recovery flows unverified.",
+    "decision": "block"
+  }
+]

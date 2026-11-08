@@ -134,10 +134,15 @@
                 "type": "string",
                 "enum": [
                   "new",
-                  "fidelity"
+                  "fidelity",
+                  "fix",
+                  "cleanup"
                 ]
               },
               "brief": {
+                "type": "string"
+              },
+              "file": {
                 "type": "string"
               }
             },
@@ -159,6 +164,26 @@
       "items": {
         "type": "string"
       }
+    },
+    "baseSha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reviewSha": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "lastError": {
       "anyOf": [

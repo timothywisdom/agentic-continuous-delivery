@@ -3,6 +3,7 @@ import type { ReviewDelta, ReviewFinding, WorkEvent } from "../types/work.js";
 export interface ReviewMechanical {
   name: string;
   ok: boolean;
+  skipped?: boolean;
   detail?: string;
 }
 
@@ -61,7 +62,10 @@ function parseFindings(value: unknown): ReviewFinding[] {
       line: typeof rec.line === "number" ? rec.line : null,
       issue: rec.issue,
       why: typeof rec.why === "string" ? rec.why : "",
-      decision: rec.decision === "pass" ? "pass" : "block",
+      decision:
+        rec.decision === "pass" || rec.decision === "advisory" || rec.decision === "block"
+          ? rec.decision
+          : "block",
     });
   }
   return findings;
@@ -88,6 +92,7 @@ function parseMechanical(value: unknown): ReviewMechanical[] {
     checks.push({
       name: rec.name,
       ok: rec.ok,
+      ...(rec.skipped === true ? { skipped: true } : {}),
       ...(typeof rec.detail === "string" && rec.detail ? { detail: rec.detail } : {}),
     });
   }

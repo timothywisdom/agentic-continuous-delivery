@@ -262,7 +262,7 @@ async function dispatchCommand(
 
   if (cmd === "revise") {
     const workId = resolveWorkId(repoRoot, overrides.workId);
-    const result = reviseFromLatestReview(repoRoot, workId);
+    const result = await reviseFromLatestReview(repoRoot, workId, config, overrides);
     const summary = {
       reopened: result.reopened.length,
       addedScenarios: result.addedScenarios.length,

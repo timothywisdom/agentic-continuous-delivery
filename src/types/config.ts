@@ -20,6 +20,7 @@ export const AGENT_ROLES = [
   "architectural_conformance",
   "intent_alignment",
   "constraint_compliance",
+  "revise_behavior",
 ] as const;
 
 export type AgentRole = (typeof AGENT_ROLES)[number];

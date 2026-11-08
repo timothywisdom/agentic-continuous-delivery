@@ -117,26 +117,23 @@ describe("planRevision", () => {
     expect(numbered.addedScenarios).toEqual([]);
   });
 
-  it("adds scenarios for behavior gaps and standing rules", () => {
-    expect(plan.addedScenarios.map((item) => item.agent)).toEqual([
-      "semantic",
-      "security",
-      "performance",
+  it("routes product findings to a draft and does not paste the defect", () => {
+    expect(plan.addedScenarios).toEqual([]);
+    expect(plan.behaviorDrafts.map((item) => item.issue)).toEqual([
+      "Division by zero shows no error",
+      "the button stays visible while loading",
     ]);
-    expect(plan.behavior).toContain("Scenario: 3. Division by zero shows no error");
-    expect(plan.behavior).toContain("Scenario: 4. Tokens must not be logged");
-    expect(plan.acceptance).toContain("## Review follow-ups");
-    expect(plan.acceptance).toContain("Scenario 3:");
-    expect(plan.constraints).toEqual([
-      { section: "must-not", issue: "Tokens must not be logged" },
-      { section: "must", issue: "the button stays visible while loading" },
-    ]);
-    expect(plan.feature).toContain("Tokens must not be logged");
-    expect(plan.feature).toMatch(/### Must Nots\n- Must not expand scope\n- Tokens must not be logged/);
-    expect(plan.feature).toMatch(/### Musts\n- Keep the change small\n- the button stays visible while loading/);
+    expect(plan.policyQuestions).toEqual([]);
+    expect(plan.behavior).not.toContain("does not recur");
+    expect(plan.behavior).not.toContain("Division by zero");
+    expect(plan.behavior).not.toContain("Tokens must not be logged");
+    expect(plan.feature).not.toContain("Tokens must not be logged");
+    expect(plan.feature).not.toContain("button stays visible");
+    expect(plan.acceptance).not.toContain("Review follow-ups");
+    expect(plan.implementQueue.some((job) => job.mode === "fix" && job.brief.includes("Tokens must not be logged"))).toBe(true);
   });
 
-  it("continues evaluation ids when behavior.feature already uses them", () => {
+  it("holds an observable product finding for drafting instead of inventing a scenario", () => {
     const plan = planRevision({
       behavior: `Feature: calculator\n\n  Scenario E1: Add\n    Then 3\n\n  Scenario: E2. Subtract\n    Then 1\n`,
       feature: FEATURE,
@@ -150,14 +147,17 @@ describe("planRevision", () => {
       ],
       absorbedKeys: [],
     });
-    expect(plan.behavior).toContain("Scenario: E3. divide by zero shows no error");
-    expect(plan.acceptance).toContain("Scenario E3:");
-    expect(plan.addedScenarios.map((item) => item.index)).toEqual([3]);
+    expect(plan.behaviorDrafts.map((item) => item.issue)).toEqual([
+      "divide by zero shows no error",
+    ]);
+    expect(plan.behavior).not.toContain("Scenario: E3");
+    expect(plan.addedScenarios).toEqual([]);
   });
 
-  it("keeps non-observable performance and unmapped fidelity out of the spec", () => {
+  it("keeps non-observable performance out of the spec and queues an orphan test for cleanup", () => {
     expect(plan.notes.map((note) => note.issue)).toEqual(["the inner loop is slow"]);
-    expect(plan.unmapped.map((item) => item.issue)).toEqual(["asserts a private helper"]);
+    expect(plan.unmapped).toEqual([]);
+    expect(plan.implementQueue.some((job) => job.mode === "cleanup" && job.file === "tests/acceptance/not-a-scenario.test.js")).toBe(true);
     expect(plan.behavior).not.toContain("inner loop");
     expect(plan.behavior).not.toContain("private helper");
   });
@@ -175,7 +175,37 @@ describe("planRevision", () => {
     expect(again.acceptance).toBe(plan.acceptance);
     expect(again.implementQueue).toEqual([]);
     expect(again.addedScenarios).toEqual([]);
-    expect(again.unmapped.map((item) => item.issue)).toEqual(["asserts a private helper"]);
+    expect(again.behaviorDrafts.map((item) => item.agent)).toEqual(["semantic", "performance"]);
+    expect(again.unmapped).toEqual([]);
+  });
+});
+
+describe("round-2 calculator findings", () => {
+  const findings = JSON.parse(
+    readFileSync(new URL("./fixtures/round2-review-findings.json", import.meta.url), "utf8"),
+  ) as ReviewFinding[];
+
+  const plan = planRevision({
+    behavior: BEHAVIOR,
+    feature: FEATURE,
+    acceptance: ACCEPTANCE,
+    findings,
+    absorbedKeys: [],
+  });
+
+  it("does not paste defect text into the spec", () => {
+    expect(plan.behavior).not.toContain("does not recur");
+    expect(plan.feature).not.toContain("playwright devDependency");
+    expect(plan.feature).not.toContain("structured operational logging");
+    expect(plan.acceptance).not.toContain("does not recur");
+  });
+
+  it("sends policy, code, contradiction, and product findings down different paths", () => {
+    expect(plan.policyQuestions.some((item) => /playwright devDependency/i.test(item.issue))).toBe(true);
+    expect(plan.policyQuestions.some((item) => /structured operational logging/i.test(item.issue))).toBe(true);
+    expect(plan.implementQueue.some((job) => job.mode === "fix" && /enter\(\)/.test(job.brief))).toBe(true);
+    expect(plan.guidanceQuestions.some((item) => /repeated-equals/i.test(item.issue))).toBe(true);
+    expect(plan.behaviorDrafts.some((item) => /digit entry replaces the message/i.test(item.issue))).toBe(true);
   });
 });
 
@@ -237,7 +267,7 @@ describe("revise and implement", () => {
     });
   }
 
-  it("folds a review into the spec once and keeps the queue", () => {
+  it("folds a review into the spec once and keeps the queue", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "acd-revise-"));
     const id = "w-revise";
     seed(repoRoot, id, [
@@ -249,26 +279,28 @@ describe("revise and implement", () => {
       finding({ agent: "semantic", issue: "Division by zero shows no error" }),
     ]);
 
-    const first = reviseFromLatestReview(repoRoot, id);
+    const first = await reviseFromLatestReview(repoRoot, id);
     expect(first.clearedApproval).toBe(true);
     expect(first.implementQueue.map((job) => job.index)).toEqual([1, 3]);
     expect(readState(repoRoot, id).awaitingApproval).toBeNull();
     const behavior = readArtifact(repoRoot, id, "behavior.feature");
     expect(behavior.match(/Scenario:/g)).toHaveLength(3);
+    expect(behavior).not.toContain("does not recur");
+    expect(behavior).toContain("Then the display shows the result");
 
-    const second = reviseFromLatestReview(repoRoot, id);
+    const second = await reviseFromLatestReview(repoRoot, id);
     expect(second.addedScenarios).toEqual([]);
     expect(second.reopened).toEqual([]);
     expect(second.implementQueue.map((job) => job.index)).toEqual([1, 3]);
     expect(readArtifact(repoRoot, id, "behavior.feature").match(/Scenario:/g)).toHaveLength(3);
   });
 
-  it("refuses to revise a red pipeline", () => {
+  it("refuses to revise a red pipeline", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "acd-revise-red-"));
     const id = "w-red";
     seed(repoRoot, id, [finding({ agent: "semantic", issue: "missing" })]);
     writeState(repoRoot, state(id, { pipelineStatus: "red", awaitingApproval: null }));
-    expect(() => reviseFromLatestReview(repoRoot, id)).toThrow(/acd fix/);
+    await expect(reviseFromLatestReview(repoRoot, id)).rejects.toThrow(/acd fix/);
   });
 
   it("skips a queued scenario whose test already passes", async () => {
