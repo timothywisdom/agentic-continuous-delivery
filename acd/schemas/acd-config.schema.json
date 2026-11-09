@@ -79,6 +79,18 @@
         },
         "blockImplementerMerge": {
           "type": "boolean"
+        },
+        "acceptanceTestRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptanceSupportRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [],

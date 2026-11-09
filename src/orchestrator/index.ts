@@ -198,6 +198,7 @@ function placeholderIntakeState(sourceText: string): WorkState {
     currentScenario: null,
     implementQueue: null,
     absorbedReviewFindings: [],
+    acceptanceHarnessReady: false,
     lastError: null,
     lastStageOutput: null,
     approvedStages: [],

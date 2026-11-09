@@ -38,6 +38,7 @@ export const intakeStage: StageDef<IntakeInput, IntakeOutput> = {
       absorbedReviewFindings: [],
       baseSha: gitRev(ctx.repoRoot),
       reviewSha: null,
+      acceptanceHarnessReady: false,
       lastError: null,
       lastStageOutput: null,
       approvedStages: [],

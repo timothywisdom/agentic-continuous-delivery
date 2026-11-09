@@ -114,7 +114,7 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
   outputSchema: reviewOutputSchema,
   async run(input, ctx) {
     const { workId } = input;
-    const mechanical = runMechanicalHooks(ctx.config, ctx.repoRoot);
+    const mechanical = runMechanicalHooks(ctx.config, ctx.repoRoot, workId);
     for (const check of mechanical) {
       if (check.skipped) logProgress(`review: ${check.name} skipped — ${check.detail ?? "not run"}`);
     }

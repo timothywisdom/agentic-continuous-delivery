@@ -3,6 +3,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AcdConfig } from "../types/config.js";
 import { systemConstraintsCandidates } from "../paths.js";
+import {
+  formatAcceptanceLint,
+  lintAcceptanceTests,
+} from "../spec/acceptance-lint.js";
+import { artifactExists, readArtifact } from "../work/store.js";
 
 export interface MechanicalResult {
   name: string;
@@ -41,6 +46,7 @@ export function runCommand(
 export function runMechanicalHooks(
   config: AcdConfig,
   repoRoot: string,
+  workId?: string,
 ): MechanicalResult[] {
   const results: MechanicalResult[] = [];
   const repo = config.repo ?? {};
@@ -63,7 +69,26 @@ export function runMechanicalHooks(
     const ran = runCommand(cmd, repoRoot);
     results.push({ name, ok: ran.ok, detail: ran.detail });
   }
+  if (workId && artifactExists(repoRoot, workId, "behavior.feature")) {
+    const acceptance = runAcceptanceLintHook(config, repoRoot, workId);
+    results.push(acceptance);
+  }
   return results;
+}
+
+export function runAcceptanceLintHook(
+  config: AcdConfig,
+  repoRoot: string,
+  workId: string,
+  onlyFiles?: string[],
+): MechanicalResult {
+  const behavior = readArtifact(repoRoot, workId, "behavior.feature");
+  const lint = lintAcceptanceTests(repoRoot, config, behavior, onlyFiles);
+  return {
+    name: "acceptance-lint",
+    ok: lint.ok,
+    detail: formatAcceptanceLint(lint),
+  };
 }
 
 /** True when package.json exists and its scripts.lint entry is a non-empty string. */

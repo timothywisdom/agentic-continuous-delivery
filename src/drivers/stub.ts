@@ -28,6 +28,33 @@ function stubPayload(request: HarnessRunRequest): unknown {
         decision: "pass",
         findings: [],
       };
+    case "implementation":
+      if (request.skillName === "scaffold-acceptance-harness") {
+        const roots = Array.isArray(input.acceptanceSupportRoots)
+          ? (input.acceptanceSupportRoots as string[])
+          : ["tests/support"];
+        const root = roots[0] ?? "tests/support";
+        return {
+          files: [
+            {
+              path: `${root}/steps.js`,
+              action: "create",
+              content: `/** Shared acceptance helpers (stub). */\nexport async function openApp() {}\nexport async function enter(_text) {}\nexport async function press(_label) {}\nexport async function displayShows(_text) {}\nexport async function canSee(_label) {}\n`,
+            },
+          ],
+          tests: [],
+          concern: null,
+          contextNeeded: null,
+          summary: "Stub scaffolded a shared acceptance support module.",
+        };
+      }
+      return {
+        files: [],
+        tests: [],
+        concern: null,
+        contextNeeded: null,
+        summary: `Stub implemented scenario ${input.scenario ?? 1} without writing product code (configure cursor or anthropic).`,
+      };
     case "revise_behavior": {
       const findings = Array.isArray(input.findings) ? input.findings : [];
       return {
@@ -48,14 +75,6 @@ function stubPayload(request: HarnessRunRequest): unknown {
         rejected: [],
       };
     }
-    case "implementation":
-      return {
-        files: [],
-        tests: [],
-        concern: null,
-        contextNeeded: null,
-        summary: `Stub implemented scenario ${input.scenario ?? 1} without writing product code (configure cursor or anthropic).`,
-      };
     case "semantic_review":
     case "security_review":
     case "performance_review":

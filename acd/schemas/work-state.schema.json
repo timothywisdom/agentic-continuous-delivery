@@ -136,7 +136,8 @@
                   "new",
                   "fidelity",
                   "fix",
-                  "cleanup"
+                  "cleanup",
+                  "harness"
                 ]
               },
               "brief": {
@@ -184,6 +185,9 @@
           "type": "null"
         }
       ]
+    },
+    "acceptanceHarnessReady": {
+      "type": "boolean"
     },
     "lastError": {
       "anyOf": [

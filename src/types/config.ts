@@ -84,6 +84,16 @@ export interface AcdConfig {
     typecheckCommand?: string;
     secretScanCommand?: string;
     blockImplementerMerge?: boolean;
+    /**
+     * Directories (repo-relative) that hold acceptance tests.
+     * Default: tests/acceptance
+     */
+    acceptanceTestRoots?: string[];
+    /**
+     * Directories for the shared acceptance support module (step helpers).
+     * Default: tests/support, tests/helpers
+     */
+    acceptanceSupportRoots?: string[];
   };
 }
 

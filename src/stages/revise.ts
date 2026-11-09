@@ -195,6 +195,7 @@ function guidancePrompt(findings: ReviewFinding[]): string {
 }
 
 function queueKey(job: ImplementJob): string {
+  if (job.mode === "harness") return "harness";
   if (job.mode === "cleanup" || (job.mode === "fix" && job.index === 0)) {
     return `${job.mode}:${job.file ?? job.brief}`;
   }
@@ -212,6 +213,14 @@ function mergeQueues(
     const prev = map.get(key);
     if (!prev) {
       map.set(key, job);
+      continue;
+    }
+    if (job.mode === "harness" || prev.mode === "harness") {
+      map.set(key, {
+        index: 0,
+        mode: "harness",
+        brief: [prev.brief, job.brief].filter(Boolean).join("\n\n"),
+      });
       continue;
     }
     const mode =

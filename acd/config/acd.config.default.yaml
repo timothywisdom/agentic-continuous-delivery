@@ -282,3 +282,14 @@ repo:
 
   # When true, PR body warns not to merge as the implementer identity (ACD #7).
   blockImplementerMerge: true
+
+  # Acceptance-test layout (language-agnostic paths; override per project).
+  # Implement scaffolds a shared support module under the first support root that
+  # matches the repo's language. Acceptance lint only scans these trees.
+  # Language-specific smells (imports, source reads, console spies) use adapters
+  # in src/spec/acceptance-lint-adapters/ (javascript, python today).
+  acceptanceTestRoots:
+    - tests/acceptance
+  acceptanceSupportRoots:
+    - tests/support
+    - tests/helpers

@@ -4,7 +4,7 @@ import { STAGE_NAMES } from "../types/stages.js";
 
 export const implementJobSchema = z.object({
   index: z.number().int().nonnegative(),
-  mode: z.enum(["new", "fidelity", "fix", "cleanup"]),
+  mode: z.enum(["new", "fidelity", "fix", "cleanup", "harness"]),
   brief: z.string(),
   file: z.string().optional(),
 });
@@ -88,6 +88,8 @@ export const acdConfigSchema = z.object({
       typecheckCommand: z.string().optional(),
       secretScanCommand: z.string().optional(),
       blockImplementerMerge: z.boolean().optional(),
+      acceptanceTestRoots: z.array(z.string()).optional(),
+      acceptanceSupportRoots: z.array(z.string()).optional(),
     })
     .optional(),
 });
@@ -107,6 +109,8 @@ export const workStateSchema = z.object({
   absorbedReviewFindings: z.array(z.string()).default([]),
   baseSha: z.string().nullable().default(null),
   reviewSha: z.string().nullable().default(null),
+  /** Shared acceptance support module has been scaffolded for this work item. */
+  acceptanceHarnessReady: z.boolean().default(false),
   lastError: z.string().nullable(),
   lastStageOutput: z.record(z.unknown()).nullable(),
   approvedStages: z.array(stageNameSchema),

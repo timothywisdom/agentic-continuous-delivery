@@ -15,7 +15,7 @@ export interface ImplementJob {
    * `fidelity` rewrites the test. `new` writes a test only when none exists.
    * `fix` changes product code under an existing scenario. `cleanup` deletes an orphan test file.
    */
-  mode: "new" | "fidelity" | "fix" | "cleanup";
+  mode: "new" | "fidelity" | "fix" | "cleanup" | "harness";
   brief: string;
   /** Repo-relative file for a `cleanup` job, or a `fix` job that matches no scenario. */
   file?: string;
@@ -42,6 +42,8 @@ export interface WorkState {
   baseSha?: string | null;
   /** HEAD at the last completed review. Later cycles diff against this commit. */
   reviewSha?: string | null;
+  /** Shared acceptance support module has been scaffolded for this work item. */
+  acceptanceHarnessReady?: boolean;
   lastError: string | null;
   lastStageOutput: Record<string, unknown> | null;
   approvedStages: StageName[];
