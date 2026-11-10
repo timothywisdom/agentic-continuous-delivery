@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { applyCliOverrides, loadRepoConfig } from "../src/config/load.js";
 import { runStage } from "../src/orchestrator/index.js";
 import { selectImplementScenarios } from "../src/spec/gherkin.js";
+import { categoryFromAgent } from "../src/spec/findings.js";
 import { findingKey, planRevision } from "../src/spec/revise.js";
 import { implementStage } from "../src/stages/implement.js";
 import { reviseFromLatestReview } from "../src/stages/revise.js";
@@ -40,10 +41,18 @@ const ACCEPTANCE = `## Done definition
 `;
 
 function finding(over: Partial<ReviewFinding> & Pick<ReviewFinding, "agent" | "issue">): ReviewFinding {
+  const category = categoryFromAgent(over.agent);
   return {
     file: "src/calculator.js",
     line: 10,
     why: "it is wrong",
+    severity: "major",
+    category,
+    scenario: null,
+    evidence:
+      category === "test" || category === "product"
+        ? { spec: "Then the observable outcome occurs" }
+        : { code: "example()" },
     decision: "block",
     ...over,
   };
@@ -52,35 +61,51 @@ function finding(over: Partial<ReviewFinding> & Pick<ReviewFinding, "agent" | "i
 describe("planRevision", () => {
   const fidelity = finding({
     agent: "test_fidelity",
+    category: "test",
     file: "tests/acceptance/primary-success-path.test.js",
     issue: "Given is not exercised",
+    evidence: { spec: "Given the current system" },
   });
   const orphan = finding({
     agent: "implementation_coupling",
+    category: "test",
     file: "tests/acceptance/not-a-scenario.test.js",
     issue: "asserts a private helper",
+    evidence: { spec: "Then the observable outcome occurs" },
   });
   const semantic = finding({
     agent: "semantic",
+    category: "product",
     issue: "Division by zero shows no error",
+    evidence: { spec: "Then the system fails safely" },
   });
   const security = finding({
     agent: "security",
+    category: "code",
     issue: "Tokens must not be logged",
+    evidence: { code: "console.log(token)" },
   });
   const slow = finding({
     agent: "performance",
+    category: "code",
+    severity: "minor",
     issue: "the inner loop is slow",
     why: "cpu",
+    decision: "advisory",
+    evidence: { code: "for (const x of xs)" },
   });
   const button = finding({
     agent: "performance",
+    category: "product",
     issue: "the button stays visible while loading",
+    evidence: { spec: "Then the button stays visible" },
   });
   const passed = finding({
     agent: "semantic",
+    category: "product",
     issue: "already fine",
     decision: "pass",
+    evidence: { spec: "Then ok" },
   });
 
   const plan = planRevision({
@@ -107,8 +132,11 @@ describe("planRevision", () => {
       findings: [
         finding({
           agent: "test_fidelity",
+          category: "test",
           file: "tests/acceptance/unrelated.test.js",
           issue: "Scenario 2 does not assert the error",
+          scenario: "2",
+          evidence: { spec: "Then the system fails safely" },
         }),
       ],
       absorbedKeys: [],
@@ -141,8 +169,10 @@ describe("planRevision", () => {
       findings: [
         finding({
           agent: "semantic",
+          category: "product",
           issue: "divide by zero shows no error",
           why: "the user sees a blank display",
+          evidence: { spec: "Then the system fails safely" },
         }),
       ],
       absorbedKeys: [],

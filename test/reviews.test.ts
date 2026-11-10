@@ -17,6 +17,10 @@ const finding = {
   line: 12,
   issue: "Query string is interpolated into SQL.",
   why: "Untrusted input reaches the query.",
+  severity: "blocker" as const,
+  category: "code" as const,
+  scenario: null,
+  evidence: { code: "db.query(`select ${q}`)" },
   decision: "block" as const,
 };
 

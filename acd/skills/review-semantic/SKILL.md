@@ -11,13 +11,4 @@ Scope: analyze only the diff. Early exit if the diff is comments/formatting only
 
 Check logic vs the BDD scenario, edge cases, intent alignment, and tests that couple to internals.
 
-Return:
-
-```json
-{
-  "decision": "pass | block",
-  "findings": [
-    { "file": "<path>", "line": 1, "issue": "<one sentence>", "why": "<failure mode>" }
-  ]
-}
-```
+Return the review JSON described in the appended rubric. Use `decision`, not `verdict`.

@@ -9,4 +9,4 @@ Structural coupling (product imports, reading source files, console spies) is en
 
 Judge the shared acceptance support module and scenario tests for remaining coupling: private fields, call counts, exact class names, or other internals that would break on a behavior-preserving refactor. Reviewing the support module once covers all scenarios that call it.
 
-Return JSON with `decision` (`pass` or `block`) and `findings` (`file`, `line`, `issue`, `why`). Do not use `verdict`.
+Return the review JSON described in the appended rubric. Use `decision`, not `verdict`.

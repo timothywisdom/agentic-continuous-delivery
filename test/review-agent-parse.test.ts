@@ -27,6 +27,8 @@ describe("parseReviewAgent", () => {
         line: 12,
         issue: "Test reaches a private helper.",
         why: "A rename would fail the suite.",
+        scenario: null,
+        evidence: {},
       },
     ]);
   });

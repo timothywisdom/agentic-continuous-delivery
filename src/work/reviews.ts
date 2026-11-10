@@ -56,12 +56,32 @@ function parseFindings(value: unknown): ReviewFinding[] {
     if (!item || typeof item !== "object") continue;
     const rec = item as Record<string, unknown>;
     if (typeof rec.issue !== "string" || typeof rec.agent !== "string") continue;
+    const evidenceRaw =
+      rec.evidence && typeof rec.evidence === "object"
+        ? (rec.evidence as Record<string, unknown>)
+        : {};
     findings.push({
       agent: rec.agent,
       file: typeof rec.file === "string" ? rec.file : "",
       line: typeof rec.line === "number" ? rec.line : null,
       issue: rec.issue,
       why: typeof rec.why === "string" ? rec.why : "",
+      severity:
+        rec.severity === "blocker" || rec.severity === "major" || rec.severity === "minor"
+          ? rec.severity
+          : "major",
+      category:
+        rec.category === "test" ||
+        rec.category === "product" ||
+        rec.category === "code" ||
+        rec.category === "policy"
+          ? rec.category
+          : "code",
+      scenario: typeof rec.scenario === "string" ? rec.scenario : null,
+      evidence: {
+        ...(typeof evidenceRaw.spec === "string" ? { spec: evidenceRaw.spec } : {}),
+        ...(typeof evidenceRaw.code === "string" ? { code: evidenceRaw.code } : {}),
+      },
       decision:
         rec.decision === "pass" || rec.decision === "advisory" || rec.decision === "block"
           ? rec.decision

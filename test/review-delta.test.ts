@@ -28,6 +28,10 @@ describe("review-delta", () => {
     line: 42,
     issue: "Missing Bearer token authentication header validation",
     why: "Allows unauthenticated requests to protected route",
+    severity: "blocker",
+    category: "code",
+    scenario: null,
+    evidence: { code: "if (!req.headers.authorization)" },
     decision: "block",
   };
 
@@ -37,6 +41,10 @@ describe("review-delta", () => {
     line: 10,
     issue: "Unsynchronized cache write causes race condition",
     why: "Data corruption under concurrent access",
+    severity: "major",
+    category: "code",
+    scenario: null,
+    evidence: { code: "cache.set(key, value)" },
     decision: "block",
   };
 
@@ -46,6 +54,10 @@ describe("review-delta", () => {
     line: 88,
     issue: "N+1 query loop when fetching user records",
     why: "Causes database connection pool exhaustion",
+    severity: "major",
+    category: "code",
+    scenario: null,
+    evidence: { code: "for (const id of ids)" },
     decision: "block",
   };
 
@@ -238,6 +250,9 @@ describe("reviewStage multi-cycle pipeline integration with OTel spans", () => {
             line: 50,
             issue: "Missing authorization check before transfer",
             why: "Unprivileged users can execute transfers",
+            severity: "blocker",
+            category: "code",
+            evidence: { code: "transfer(from, to, amount)" },
           },
         ],
       },
@@ -249,6 +264,9 @@ describe("reviewStage multi-cycle pipeline integration with OTel spans", () => {
             line: 25,
             issue: "Race condition during balance update",
             why: "Overdraft without lock",
+            severity: "major",
+            category: "code",
+            evidence: { code: "balance = balance - amount" },
           },
         ],
       },
@@ -277,6 +295,9 @@ describe("reviewStage multi-cycle pipeline integration with OTel spans", () => {
             line: 28, // line shifted slightly after code edits
             issue: "Race condition during balance update",
             why: "Overdraft without lock",
+            severity: "major",
+            category: "code",
+            evidence: { code: "balance = balance - amount" },
           },
         ],
       },
@@ -288,6 +309,9 @@ describe("reviewStage multi-cycle pipeline integration with OTel spans", () => {
             line: 12,
             issue: "Synchronous blocking file write in audit log",
             why: "Slows transaction throughput",
+            severity: "major",
+            category: "code",
+            evidence: { code: "fs.writeFileSync(path, line)" },
           },
         ],
       },

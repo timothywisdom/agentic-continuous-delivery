@@ -19,12 +19,18 @@ export function ReviewPane({
   const selected =
     reviews.find((r) => r.index === picked) ?? latest;
   const [agent, setAgent] = useState("all");
+  const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
   const [file, setFile] = useState("all");
 
   const agents = useMemo(() => {
     if (!selected) return [];
     return [...new Set(selected.findings.map((f) => f.agent))].sort();
+  }, [selected]);
+
+  const categories = useMemo(() => {
+    if (!selected) return [];
+    return [...new Set(selected.findings.map((f) => f.category ?? "code"))].sort();
   }, [selected]);
 
   const files = useMemo(() => {
@@ -42,16 +48,19 @@ export function ReviewPane({
     const q = query.trim().toLowerCase();
     return selected.findings.filter((finding) => {
       if (agent !== "all" && finding.agent !== agent) return false;
+      if (category !== "all" && (finding.category ?? "code") !== category) {
+        return false;
+      }
       const path = finding.file || "(no file)";
       if (file !== "all" && path !== file) return false;
       if (!q) return true;
-      return `${finding.file} ${finding.issue} ${finding.why} ${finding.agent}`
+      return `${finding.file} ${finding.issue} ${finding.why} ${finding.agent} ${finding.severity ?? ""} ${finding.category ?? ""}`
         .toLowerCase()
         .includes(q);
     });
-  }, [selected, agent, file, query]);
+  }, [selected, agent, category, file, query]);
 
-  const grouped = useMemo(() => groupByFile(visible), [visible]);
+  const grouped = useMemo(() => groupByCategoryThenFile(visible), [visible]);
 
   if (!selected) {
     return (
@@ -73,6 +82,7 @@ export function ReviewPane({
             onChange={(e) => {
               setPicked(Number(e.target.value));
               setAgent("all");
+              setCategory("all");
               setFile("all");
               setQuery("");
             }}
@@ -132,12 +142,23 @@ export function ReviewPane({
             ))}
           </select>
         </label>
+        <label>
+          Category
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="all">All categories</option>
+            {categories.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="review-search">
           Search
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="File, issue, or why"
+            placeholder="File, issue, severity, or why"
             spellCheck={false}
           />
         </label>
@@ -172,9 +193,12 @@ export function ReviewPane({
             <p className="review-empty">No comments match this filter.</p>
           ) : (
             grouped.map((group) => (
-              <section key={group.file} className="review-file">
+              <section key={`${group.category}:${group.file}`} className="review-file">
                 <header>
-                  <code>{group.file}</code>
+                  <code>
+                    <span className={`tag category-${group.category}`}>{group.category}</span>{" "}
+                    {group.file}
+                  </code>
                   <span>
                     {group.findings.length} comment{group.findings.length === 1 ? "" : "s"}
                   </span>
@@ -192,7 +216,7 @@ export function ReviewPane({
               </section>
             ))
           )}
-          {selected.delta && selected.delta.resolved.length > 0 && file === "all" && agent === "all" && !query ? (
+          {selected.delta && selected.delta.resolved.length > 0 && file === "all" && agent === "all" && category === "all" && !query ? (
             <section className="review-file resolved-file">
               <header>
                 <code>Resolved</code>
@@ -229,10 +253,17 @@ function Comment({
     <li className={`review-comment ${finding.decision}`}>
       <div className="review-comment-top">
         <span className={`agent-pill agent-${slug(finding.agent)}`}>{agentLabel(finding.agent)}</span>
+        <span className={`tag severity-${finding.severity ?? "major"}`}>
+          {finding.severity ?? "major"}
+        </span>
+        <span className={`tag category-${finding.category ?? "code"}`}>
+          {finding.category ?? "code"}
+        </span>
         <span className={`tag ${finding.decision}`}>{finding.decision}</span>
         {kind !== "unchanged" ? <span className={`tag ${kind}`}>{kind}</span> : null}
         <span className="review-loc">
           {finding.line != null ? `line ${finding.line}` : "file"}
+          {finding.scenario ? ` · ${finding.scenario}` : ""}
         </span>
         {href ? (
           <a className="review-open" href={href}>
@@ -242,15 +273,26 @@ function Comment({
       </div>
       <p className="review-issue">{finding.issue}</p>
       {finding.why ? <p className="review-why">{finding.why}</p> : null}
+      {finding.evidence?.spec || finding.evidence?.code ? (
+        <p className="review-why">
+          {finding.evidence.spec ? `spec: ${finding.evidence.spec}` : null}
+          {finding.evidence.spec && finding.evidence.code ? " · " : null}
+          {finding.evidence.code ? `code: ${finding.evidence.code}` : null}
+        </p>
+      ) : null}
     </li>
   );
 }
 
-function groupByFile(findings: Finding[]): { file: string; findings: Finding[] }[] {
+function groupByCategoryThenFile(
+  findings: Finding[],
+): { category: string; file: string; findings: Finding[] }[] {
   const order: string[] = [];
   const groups = new Map<string, Finding[]>();
   for (const finding of findings) {
-    const key = finding.file || "(no file)";
+    const category = finding.category ?? "code";
+    const file = finding.file || "(no file)";
+    const key = `${category}\0${file}`;
     const list = groups.get(key);
     if (list) list.push(finding);
     else {
@@ -258,7 +300,10 @@ function groupByFile(findings: Finding[]): { file: string; findings: Finding[] }
       groups.set(key, [finding]);
     }
   }
-  return order.map((file) => ({ file, findings: groups.get(file) ?? [] }));
+  return order.map((key) => {
+    const [category, file] = key.split("\0");
+    return { category: category ?? "code", file: file ?? "(no file)", findings: groups.get(key) ?? [] };
+  });
 }
 
 function disposition(run: ReviewRun, finding: Finding): Disposition {

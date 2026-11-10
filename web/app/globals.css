@@ -780,6 +780,30 @@ textarea {
   border-color: #4c3560;
 }
 
+.tag.severity-blocker {
+  color: var(--err);
+  border-color: #6e3034;
+}
+
+.tag.severity-major {
+  color: #e3b341;
+  border-color: #6a5420;
+}
+
+.tag.severity-minor {
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+.tag.category-test,
+.tag.category-product,
+.tag.category-code,
+.tag.category-policy {
+  color: var(--text);
+  border-color: var(--line);
+  text-transform: lowercase;
+}
+
 .review-body {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);

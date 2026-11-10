@@ -111,12 +111,30 @@ export interface ImplementOutput {
   skippedScenarios: number[];
 }
 
+export const FINDING_SEVERITIES = ["blocker", "major", "minor"] as const;
+export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
+
+export const FINDING_CATEGORIES = ["test", "product", "code", "policy"] as const;
+export type FindingCategory = (typeof FINDING_CATEGORIES)[number];
+
+export interface FindingEvidence {
+  /** Quoted Gherkin / acceptance line. Required for test and product findings. */
+  spec?: string;
+  /** Quoted code line. Required for code and policy findings. */
+  code?: string;
+}
+
 export interface ReviewFinding {
   agent: string;
   file: string;
   line: number | null;
   issue: string;
   why: string;
+  severity: FindingSeverity;
+  category: FindingCategory;
+  /** Scenario label (e.g. E1 or 3), when known. */
+  scenario: string | null;
+  evidence: FindingEvidence;
   decision: "pass" | "block" | "advisory";
 }
 

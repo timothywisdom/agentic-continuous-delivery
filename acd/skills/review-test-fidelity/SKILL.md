@@ -11,4 +11,4 @@ Structural rules (scenario binding header, no product imports, no source-file re
 
 Judge only whether shared acceptance support helpers really perform the step their phrase claims, and whether assertions are as strict as each Then.
 
-Return JSON with `decision` (`pass` or `block`) and `findings` (`file`, `line`, `issue`, `why`). Do not use `verdict`.
+Return the review JSON described in the appended rubric. Use `decision`, not `verdict`.

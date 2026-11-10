@@ -7,4 +7,4 @@ description: Verify the combined change addresses the intent, not merely passing
 
 Inputs: diff + intent summary + current scenario.
 
-Return JSON with `decision` (`pass` or `block`) and `findings` (`file`, `line`, `issue`, `why`). Do not use `verdict`.
+Return the review JSON described in the appended rubric. Use `decision`, not `verdict`.

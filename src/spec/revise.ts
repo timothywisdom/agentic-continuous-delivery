@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ImplementJob, ReviewFinding } from "../types/work.js";
+import { categoryFromAgent } from "./findings.js";
 import { parseScenarios, type Scenario } from "./gherkin.js";
 import { slugsMatch } from "./scenario-tests.js";
 import { slugify } from "../work/store.js";
@@ -70,9 +71,14 @@ export function planRevision(input: {
   const policyQuestions: ReviewFinding[] = [];
   const guidanceQuestions: ReviewFinding[] = [];
 
-  for (const finding of input.findings) {
-    if (finding.decision !== "block") continue;
+  for (const raw of input.findings) {
+    const finding = withFindingDefaults(raw);
     const key = findingKey(finding);
+    if (finding.severity === "minor" || finding.decision === "advisory") {
+      notes.push({ agent: finding.agent, issue: finding.issue });
+      continue;
+    }
+    if (finding.decision !== "block") continue;
     if (applied(key)) continue;
     const route = routeFinding(finding, parseScenarios(behavior));
     if (route.kind === "fidelity") {
@@ -178,14 +184,37 @@ type Route =
   | { kind: "fix"; index: number }
   | { kind: "note" };
 
+function withFindingDefaults(finding: ReviewFinding): ReviewFinding {
+  return {
+    ...finding,
+    severity: finding.severity ?? "major",
+    category: finding.category ?? categoryFromAgent(finding.agent),
+    scenario: finding.scenario ?? null,
+    evidence: finding.evidence ?? {},
+  };
+}
+
 function routeFinding(finding: ReviewFinding, scenarios: Scenario[]): Route {
+  const category = finding.category;
+  if (category === "test") {
+    const index = matchScenario(finding, scenarios);
+    return index == null ? { kind: "cleanup" } : { kind: "fidelity", index };
+  }
+  if (category === "policy" || isPolicy(finding)) return { kind: "policy" };
+  if (UNSPECIFIED.test(finding.issue)) return { kind: "guidance" };
+  if (category === "product") return { kind: "draft" };
+  if (category === "code") {
+    // Agents often leave category=code on user-visible defects; treat those as product drafts.
+    if (observable(finding)) return { kind: "draft" };
+    if (classify(finding.agent) === "quality") return { kind: "note" };
+    const index = matchScenario(finding, scenarios);
+    return { kind: "fix", index: index ?? 0 };
+  }
   const kind = classify(finding.agent);
   if (kind === "fidelity") {
     const index = matchScenario(finding, scenarios);
     return index == null ? { kind: "cleanup" } : { kind: "fidelity", index };
   }
-  if (isPolicy(finding)) return { kind: "policy" };
-  if (UNSPECIFIED.test(finding.issue)) return { kind: "guidance" };
   if (kind === "quality" && !observable(finding)) return { kind: "note" };
   if (kind === "other") return { kind: "note" };
   if (kind === "behavior" || observable(finding)) return { kind: "draft" };
@@ -228,6 +257,17 @@ export function matchScenario(
   finding: ReviewFinding,
   scenarios: Scenario[],
 ): number | null {
+  if (finding.scenario) {
+    const token = finding.scenario.trim();
+    const byLabel = scenarios.find(
+      (scenario) => scenario.label.toLowerCase() === token.toLowerCase(),
+    );
+    if (byLabel) return byLabel.index;
+    if (/^\d+$/.test(token)) {
+      const index = Number(token);
+      if (scenarios.some((scenario) => scenario.index === index)) return index;
+    }
+  }
   const text = `${finding.issue}\n${finding.why}`;
   const numbered = text.match(SCENARIO_REF);
   if (numbered) {

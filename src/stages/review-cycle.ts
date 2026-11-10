@@ -38,7 +38,10 @@ export function applyCycleGate(input: {
 
   return findings.map((finding) => {
     if (finding.decision !== "block") return finding;
-    if (ALWAYS_BLOCK.has(finding.agent)) return finding;
+    // Security/semantic majors and any blocker stay blocking even off-diff.
+    if (ALWAYS_BLOCK.has(finding.agent) || finding.severity === "blocker") {
+      return finding;
+    }
     if (isUnresolvedPrior(finding, input.previous, input.verifications)) return finding;
     if (findingOnChangedLine(finding, input.changed)) return finding;
     return { ...finding, decision: "advisory" as const };

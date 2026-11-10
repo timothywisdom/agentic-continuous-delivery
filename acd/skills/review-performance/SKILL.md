@@ -7,4 +7,4 @@ description: Review staged diff against performance budgets in the feature descr
 
 You receive the diff and performance-related feature constraints only.
 
-Return JSON with `decision` (`pass` or `block`) and `findings` (`file`, `line`, `issue`, `why`). Do not use `verdict`.
+Return the review JSON described in the appended rubric. Use `decision`, not `verdict`.

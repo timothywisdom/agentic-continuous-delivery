@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AGENT_ROLES, HITL_PRESETS, TIERS } from "../types/config.js";
 import { STAGE_NAMES } from "../types/stages.js";
+import { FINDING_CATEGORIES, FINDING_SEVERITIES } from "../types/work.js";
 
 export const implementJobSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -21,10 +22,14 @@ export const driverKindSchema = z.enum([
   "stub",
 ]);
 
+export const findingSeveritySchema = z.enum(FINDING_SEVERITIES);
+export const findingCategorySchema = z.enum(FINDING_CATEGORIES);
+
 export const stageConfigSchema = z.object({
   harness: z.string().optional(),
   tier: modelTierSchema.optional(),
   require_human_approval: z.boolean().optional(),
+  block_on: z.array(findingSeveritySchema).optional(),
 });
 
 export const agentConfigSchema = z.object({
@@ -139,12 +144,21 @@ export const gateDecisionSchema = z.object({
   escalated: z.boolean().optional(),
 });
 
+export const findingEvidenceSchema = z.object({
+  spec: z.string().optional(),
+  code: z.string().optional(),
+});
+
 export const reviewFindingSchema = z.object({
   agent: z.string(),
   file: z.string(),
   line: z.number().nullable(),
   issue: z.string(),
   why: z.string(),
+  severity: findingSeveritySchema,
+  category: findingCategorySchema,
+  scenario: z.string().nullable(),
+  evidence: findingEvidenceSchema,
   decision: z.enum(["pass", "block", "advisory"]),
 });
 

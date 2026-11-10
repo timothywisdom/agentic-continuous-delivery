@@ -92,6 +92,10 @@ stages:
   review:
     tier: med
     require_human_approval: true
+    # Severities that block the review. Minor findings stay advisory.
+    block_on:
+      - blocker
+      - major
 
   # Open a PR via gh; body built from artifacts. No LLM by default.
   pr:

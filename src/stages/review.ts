@@ -20,11 +20,18 @@ import { emit } from "../work/events.js";
 import { readArtifact, readEvents, readState, writeState } from "../work/store.js";
 import { computeReviewDelta } from "./review-delta.js";
 import { applyCycleGate, type FindingVerification } from "./review-cycle.js";
+import {
+  blockOnSeverities,
+  enrichFinding,
+} from "../spec/findings.js";
+import {
+  reviewAgentFindingSchema,
+  reviewJsonShapeCriteria,
+} from "../spec/review-finding-schema.js";
 import { findingKey } from "../spec/revise.js";
 import { logProgress } from "../util/log.js";
 
-const REVIEW_JSON_SHAPE =
-  'Return only {"decision":"pass"|"block","findings":[{"file":"","line":null,"issue":"","why":""}],"verifications":[{"key":"<previous finding key>","status":"resolved"|"present"|"not_applicable","evidence":""}]}. The key is decision, not verdict. On a later review, verifications cover every previous finding.';
+const REVIEW_JSON_SHAPE = reviewJsonShapeCriteria();
 
 /** Models often name the review outcome `verdict`. The stage stores `decision`. */
 export function normalizeReviewAgent(raw: unknown): unknown {
@@ -44,11 +51,14 @@ const reviewAgentSchema = z.preprocess(
   z.object({
     decision: z.enum(["pass", "block"]),
     findings: z.array(
-      z.object({
+      // Soft parse: enrichFinding fills defaults / evidence downgrade next.
+      reviewAgentFindingSchema.partial().extend({
         file: z.string().optional().default(""),
         line: z.number().nullable().optional().default(null),
         issue: z.string(),
         why: z.string().optional().default(""),
+        scenario: z.string().nullable().optional().default(null),
+        evidence: reviewAgentFindingSchema.shape.evidence.optional().default({}),
       }),
     ),
     verifications: z
@@ -203,27 +213,28 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
     const verifications: FindingVerification[] = payloads.flatMap((payload) =>
       payload.parsed.verifications ?? [],
     );
+    const blockOn = blockOnSeverities(ctx.config);
     const findings: ReviewFinding[] = [];
     for (const { item, parsed } of payloads) {
       for (const f of parsed.findings) {
-        findings.push({
-          agent: item.agent,
-          file: f.file,
-          line: f.line,
-          issue: f.issue,
-          why: f.why,
-          decision: parsed.decision,
-        });
+        findings.push(enrichFinding(f, item.agent, blockOn));
       }
       if (parsed.decision === "block" && parsed.findings.length === 0) {
-        findings.push({
-          agent: item.agent,
-          file: "",
-          line: null,
-          issue: "Reviewer blocked with no finding details.",
-          why: "Unspecified block",
-          decision: "block",
-        });
+        findings.push(
+          enrichFinding(
+            {
+              file: "",
+              line: null,
+              issue: "Reviewer blocked with no finding details.",
+              why: "Unspecified block",
+              severity: "major",
+              category: "code",
+              evidence: { code: "(missing findings)" },
+            },
+            item.agent,
+            blockOn,
+          ),
+        );
       }
     }
 
@@ -253,8 +264,8 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
     const gate = await classifierGate(
       ctx.config,
       "review",
-      "Aggregate review: pass only if no blocking findings and mechanical hooks passed. Advisory findings do not fail this gate.",
-      { decision, findings, mechanical },
+      "Aggregate review: pass only if no blocker/major findings (per block_on) and mechanical hooks passed. Minor and advisory findings do not fail this gate.",
+      { decision, findings, mechanical, blockOn },
       ctx.overrides,
     );
     if (gate.decision === "fail") decision = "block";

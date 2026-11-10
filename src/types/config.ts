@@ -1,3 +1,4 @@
+import type { FindingSeverity } from "./work.js";
 import type { StageName } from "./stages.js";
 
 export const TIERS = ["classify", "low", "med", "high"] as const;
@@ -35,6 +36,11 @@ export interface StageConfig {
   harness?: string;
   tier?: ModelTier;
   require_human_approval?: boolean;
+  /**
+   * Review stage only. Severities that make a finding block the review.
+   * Default: blocker, major. Minor findings stay advisory.
+   */
+  block_on?: FindingSeverity[];
 }
 
 export interface AgentConfig {
