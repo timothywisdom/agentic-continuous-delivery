@@ -40,6 +40,46 @@
           "why": {
             "type": "string"
           },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "blocker",
+              "major",
+              "minor"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "test",
+              "product",
+              "code",
+              "policy"
+            ]
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "spec": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
           "decision": {
             "type": "string",
             "enum": [
@@ -55,6 +95,10 @@
           "line",
           "issue",
           "why",
+          "severity",
+          "category",
+          "scenario",
+          "evidence",
           "decision"
         ],
         "additionalProperties": false
@@ -118,6 +162,46 @@
               "why": {
                 "type": "string"
               },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "blocker",
+                  "major",
+                  "minor"
+                ]
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "test",
+                  "product",
+                  "code",
+                  "policy"
+                ]
+              },
+              "scenario": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "evidence": {
+                "type": "object",
+                "properties": {
+                  "spec": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
               "decision": {
                 "type": "string",
                 "enum": [
@@ -133,6 +217,10 @@
               "line",
               "issue",
               "why",
+              "severity",
+              "category",
+              "scenario",
+              "evidence",
               "decision"
             ],
             "additionalProperties": false
@@ -165,6 +253,46 @@
               "why": {
                 "type": "string"
               },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "blocker",
+                  "major",
+                  "minor"
+                ]
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "test",
+                  "product",
+                  "code",
+                  "policy"
+                ]
+              },
+              "scenario": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "evidence": {
+                "type": "object",
+                "properties": {
+                  "spec": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
               "decision": {
                 "type": "string",
                 "enum": [
@@ -180,6 +308,10 @@
               "line",
               "issue",
               "why",
+              "severity",
+              "category",
+              "scenario",
+              "evidence",
               "decision"
             ],
             "additionalProperties": false
@@ -212,6 +344,46 @@
               "why": {
                 "type": "string"
               },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "blocker",
+                  "major",
+                  "minor"
+                ]
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "test",
+                  "product",
+                  "code",
+                  "policy"
+                ]
+              },
+              "scenario": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "evidence": {
+                "type": "object",
+                "properties": {
+                  "spec": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
               "decision": {
                 "type": "string",
                 "enum": [
@@ -227,6 +399,10 @@
               "line",
               "issue",
               "why",
+              "severity",
+              "category",
+              "scenario",
+              "evidence",
               "decision"
             ],
             "additionalProperties": false
@@ -269,6 +445,9 @@
         "summary"
       ],
       "additionalProperties": false
+    },
+    "budgetExceeded": {
+      "type": "boolean"
     }
   },
   "required": [

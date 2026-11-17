@@ -41,6 +41,12 @@ export interface StageConfig {
    * Default: blocker, major. Minor findings stay advisory.
    */
   block_on?: FindingSeverity[];
+  /**
+   * Review stage only. After this many review cycles, a still-blocking review
+   * pauses for human guidance (waive / fix / change spec) instead of another
+   * revise loop. Default: 2.
+   */
+  max_cycles?: number;
 }
 
 export interface AgentConfig {
@@ -100,6 +106,12 @@ export interface AcdConfig {
      * Default: tests/support, tests/helpers
      */
     acceptanceSupportRoots?: string[];
+    /**
+     * Open a repo file in the local editor from the UI.
+     * Tokens: {file} absolute path, {line} number, {location} file or file:line.
+     * Example: "cursor -g {location}" or "nvim +{line} {file}"
+     */
+    openCommand?: string;
   };
 }
 

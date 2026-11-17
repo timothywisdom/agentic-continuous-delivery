@@ -74,7 +74,15 @@ function jsonOf(stdout: string): Record<string, unknown> {
 function writePins(repo: string, testCommand: string): void {
   writeFileSync(
     join(repo, ".acd", "acd.config.local.yaml"),
-    `defaults:\n  hitl: none\nrepo:\n  testCommand: ${JSON.stringify(testCommand)}\n  lintCommand: "true"\n`,
+    `defaults:
+  hitl: none
+stages:
+  review:
+    max_cycles: 6
+repo:
+  testCommand: ${JSON.stringify(testCommand)}
+  lintCommand: "true"
+`,
   );
 }
 
@@ -340,6 +348,79 @@ describe("CLI acceptance", () => {
     const revised = jsonOf(run(repo, ["revise", "--work-id", workId]).stdout);
     expect((revised.addedScenarios as unknown[]).length).toBeGreaterThan(0);
     expect((revised.implementQueue as unknown[]).length).toBeGreaterThan(0);
+
+    const policyBlocked = jsonOf(
+      run(repo, ["review", "--work-id", workId], {
+        status: 1,
+        env: {
+          ACD_STUB_REVIEW_PAYLOAD: JSON.stringify({
+            constraint_compliance: {
+              decision: "block",
+              findings: [
+                {
+                  file: "package.json",
+                  line: 4,
+                  issue: "playwright devDependency has no team approval",
+                  why: "policy",
+                  // blocker stays blocking on cycle ≥2 even with no diff
+                  severity: "blocker",
+                  category: "policy",
+                  evidence: { code: '"playwright": "1.0.0"' },
+                },
+              ],
+            },
+            default: { decision: "pass", findings: [] },
+          }),
+        },
+      }).stdout,
+    );
+    expect((policyBlocked.output as { decision: string }).decision).toBe("block");
+    const reviewList = jsonOf(run(repo, ["reviews", "--work-id", workId]).stdout);
+    const policyFinding = (
+      (reviewList.reviews as { findings: { key: string; issue: string }[] }[]).at(-1)
+        ?.findings ?? []
+    ).find((row) => /playwright/i.test(row.issue));
+    expect(policyFinding?.key).toBeTruthy();
+    const waived = jsonOf(
+      run(repo, [
+        "waive",
+        policyFinding!.key,
+        "--reason",
+        "accepted-risk",
+        "--explanation",
+        "static page",
+        "--work-id",
+        workId,
+      ]).stdout,
+    );
+    expect((waived.waived as unknown[]).length).toBe(1);
+    expect(run(repo, ["waive", "--reason", "nope"], { status: 1 }).stderr).toMatch(
+      /--reason/,
+    );
+    const afterWaive = jsonOf(
+      run(repo, ["review", "--work-id", workId], {
+        env: {
+          ACD_STUB_REVIEW_PAYLOAD: JSON.stringify({
+            constraint_compliance: {
+              decision: "block",
+              findings: [
+                {
+                  file: "package.json",
+                  line: 4,
+                  issue: "playwright devDependency has no team approval",
+                  why: "policy",
+                  severity: "blocker",
+                  category: "policy",
+                  evidence: { code: '"playwright": "1.0.0"' },
+                },
+              ],
+            },
+            default: { decision: "pass", findings: [] },
+          }),
+        },
+      }).stdout,
+    );
+    expect((afterWaive.output as { decision: string }).decision).toBe("pass");
 
     writePins(repo, "false");
     const red = jsonOf(

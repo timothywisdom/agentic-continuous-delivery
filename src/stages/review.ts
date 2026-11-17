@@ -30,6 +30,12 @@ import {
 } from "../spec/review-finding-schema.js";
 import { findingKey } from "../spec/revise.js";
 import { logProgress } from "../util/log.js";
+import {
+  budgetGuidanceNote,
+  filterWaivedFindings,
+  listWaivers,
+  reviewMaxCycles,
+} from "../work/waive.js";
 
 const REVIEW_JSON_SHAPE = reviewJsonShapeCriteria();
 
@@ -118,12 +124,21 @@ const REVIEW_FANOUT: { role: AgentRole; skill: string; agent: string }[] = [
   },
 ];
 
-export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
-  name: "review",
-  inputSchema: reviewInputSchema,
-  outputSchema: reviewOutputSchema,
-  async run(input, ctx) {
-    const { workId } = input;
+export interface ExecuteReviewOptions {
+  /**
+   * When false (ci-review), skip review.complete / max_cycles guidance so CI
+   * does not consume the revise-loop budget.
+   */
+  recordPipelineEvent?: boolean;
+}
+
+export async function executeReview(
+  input: ReviewInput,
+  ctx: Parameters<StageDef<ReviewInput, ReviewOutput>["run"]>[1],
+  opts: ExecuteReviewOptions = {},
+): Promise<ReviewOutput> {
+  const recordPipelineEvent = opts.recordPipelineEvent !== false;
+  const { workId } = input;
     const mechanical = runMechanicalHooks(ctx.config, ctx.repoRoot, workId);
     for (const check of mechanical) {
       if (check.skipped) logProgress(`review: ${check.name} skipped — ${check.detail ?? "not run"}`);
@@ -138,10 +153,10 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
     );
 
     const events = readEvents(ctx.repoRoot, workId);
+    // Only pipeline `acd review` rounds count toward cycle / max_cycles.
+    // ci-review must not inflate the revise-loop budget.
     const priorReviewEvents = events.filter(
-      (e) =>
-        (e.type === "review.complete" || e.type === "ci_review.complete") &&
-        e.data,
+      (e) => e.type === "review.complete" && e.data,
     );
     const priorReviewEvent = priorReviewEvents.at(-1);
 
@@ -158,6 +173,15 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
           Array.isArray(ctx.state.lastStageOutput?.findings)
         ? (ctx.state.lastStageOutput?.findings as ReviewFinding[])
         : [];
+
+    const waived = listWaivers(ctx.state);
+    const waivedForAgents = waived.map((item) => ({
+      key: item.key,
+      file: item.file,
+      issue: item.issue,
+      reason: item.reason,
+      explanation: item.explanation,
+    }));
 
     const payloads = await Promise.all(
       REVIEW_FANOUT.map(async (item) => {
@@ -181,10 +205,12 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
                 ...finding,
                 key: findingKey(finding),
               })),
+              waived: waivedForAgents,
               reviewCycle: cycle,
             },
             ctx.overrides,
-            REVIEW_JSON_SHAPE,
+            REVIEW_JSON_SHAPE +
+              " Do not re-raise findings listed in waived; the human already accepted them.",
           );
           const parsed = parseReviewAgent(json);
           return { item, parsed, verifications: parsed.verifications };
@@ -245,8 +271,14 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
       changed,
       verifications,
     });
+    const filtered = filterWaivedFindings(gated, waived);
+    if (filtered.dropped.length > 0) {
+      logProgress(
+        `review: dropped ${filtered.dropped.length} waived finding(s)`,
+      );
+    }
     findings.length = 0;
-    findings.push(...gated);
+    findings.push(...filtered.kept);
 
     const delta = computeReviewDelta(previousFindings, findings, cycle);
     if (cycle > 1) {
@@ -270,24 +302,61 @@ export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
     );
     if (gate.decision === "fail") decision = "block";
 
-    const reviewSha = gitRev(ctx.repoRoot);
-    writeState(ctx.repoRoot, { ...readState(ctx.repoRoot, workId), reviewSha });
+    const maxCycles = reviewMaxCycles(ctx.config);
+    const budgetExceeded =
+      recordPipelineEvent && decision === "block" && cycle > maxCycles;
+    if (recordPipelineEvent) {
+      if (budgetExceeded) {
+        const note = budgetGuidanceNote(cycle, maxCycles, blocking);
+        logProgress(
+          `review: cycle ${cycle} exceeded max_cycles=${maxCycles}; pausing for guidance`,
+        );
+        writeState(ctx.repoRoot, {
+          ...readState(ctx.repoRoot, workId),
+          reviewSha: gitRev(ctx.repoRoot),
+          awaitingGuidance: "review",
+          guidanceNote: note,
+          awaitingApproval: null,
+        });
+      } else {
+        writeState(ctx.repoRoot, {
+          ...readState(ctx.repoRoot, workId),
+          reviewSha: gitRev(ctx.repoRoot),
+        });
+      }
 
-    emit(ctx.repoRoot, workId, "review.complete", "review", {
+      const reviewSha = gitRev(ctx.repoRoot);
+      emit(ctx.repoRoot, workId, "review.complete", "review", {
+        decision,
+        findingCount: findings.length,
+        findings,
+        delta,
+        reviewSha,
+        budgetExceeded,
+        waivedDropped: filtered.dropped.length,
+      });
+    }
+
+    return {
+      workId,
       decision,
-      findingCount: findings.length,
       findings,
+      mechanical,
       delta,
-      reviewSha,
-    });
+      ...(budgetExceeded ? { budgetExceeded: true } : {}),
+    };
+}
 
-    return { workId, decision, findings, mechanical, delta };
-  },
+export const reviewStage: StageDef<ReviewInput, ReviewOutput> = {
+  name: "review",
+  inputSchema: reviewInputSchema,
+  outputSchema: reviewOutputSchema,
+  run: (input, ctx) => executeReview(input, ctx, { recordPipelineEvent: true }),
 };
 
 function priorSha(events: ReturnType<typeof readEvents>): string | null {
   const prior = events
-    .filter((event) => event.type === "review.complete" || event.type === "ci_review.complete")
+    .filter((event) => event.type === "review.complete")
     .at(-1);
   const sha = prior?.data?.reviewSha;
   return typeof sha === "string" && sha ? sha : null;

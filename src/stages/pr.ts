@@ -1,8 +1,9 @@
 import { prInputSchema, prOutputSchema } from "../schemas/zod.js";
 import type { StageDef } from "../orchestrator/index.js";
 import { currentBranch, ghPrCreate } from "../hooks/mechanical.js";
-import type { PrInput, PrOutput } from "../types/work.js";
+import type { PrInput, PrOutput, WaivedFinding } from "../types/work.js";
 import { emit } from "../work/events.js";
+import { listWaivers } from "../work/waive.js";
 import { readArtifact, readState } from "../work/store.js";
 
 export const prStage: StageDef<PrInput, PrOutput> = {
@@ -31,6 +32,7 @@ export const prStage: StageDef<PrInput, PrOutput> = {
         acceptance: readArtifact(ctx.repoRoot, workId, "acceptance.md"),
         implementer: state.implementerIdentity,
         blockImplementer: ctx.config.repo?.blockImplementerMerge !== false,
+        waivers: listWaivers(state),
       });
 
     const branch = currentBranch(ctx.repoRoot);
@@ -61,8 +63,20 @@ function buildPrBody(
     acceptance: string;
     implementer: string | null;
     blockImplementer: boolean;
+    waivers: WaivedFinding[];
   },
 ): string {
+  const waiverSection =
+    artifacts.waivers.length === 0
+      ? []
+      : [
+          "### Waived review findings",
+          ...artifacts.waivers.map((item) => {
+            const explain = item.explanation ? ` — ${item.explanation}` : "";
+            return `- \`${item.reason}\` ${item.issue} (${item.file}${item.line != null ? `:${item.line}` : ""}; key ${item.key})${explain}`;
+          }),
+          "",
+        ];
   return [
     `## ACD work \`${workId}\``,
     "",
@@ -80,6 +94,7 @@ function buildPrBody(
     "### Acceptance criteria",
     artifacts.acceptance,
     "",
+    ...waiverSection,
     artifacts.blockImplementer && artifacts.implementer
       ? `_Implementer identity: ${artifacts.implementer}. Do not merge as this identity (ACD constraint 7; configurable via repo.blockImplementerMerge)._`
       : "",

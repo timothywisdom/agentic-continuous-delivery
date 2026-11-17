@@ -60,6 +60,11 @@ export function summarizeEvent(event: {
       const tests = data.testsOk === false ? "; tests failed" : data.testsOk === true ? "; tests passed" : "";
       return n != null ? `${decision} (${n} findings)${tests}` : `${decision}${tests}`;
     }
+    case "review.waived": {
+      const n = Array.isArray(data.keys) ? data.keys.length : Array.isArray(data.waived) ? data.waived.length : 0;
+      const reason = typeof data.reason === "string" ? data.reason : "waived";
+      return `waived ${n} finding${n === 1 ? "" : "s"} (${reason})`;
+    }
     case "revise.complete": {
       const added = typeof data.addedScenarios === "number" ? data.addedScenarios : 0;
       const reopened = typeof data.reopened === "number" ? data.reopened : 0;

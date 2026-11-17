@@ -39,6 +39,7 @@ export const intakeStage: StageDef<IntakeInput, IntakeOutput> = {
       baseSha: gitRev(ctx.repoRoot),
       reviewSha: null,
       acceptanceHarnessReady: false,
+      waivedFindings: [],
       lastError: null,
       lastStageOutput: null,
       approvedStages: [],

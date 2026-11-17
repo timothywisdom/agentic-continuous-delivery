@@ -13,6 +13,7 @@ import { EventPane, type SessionEvent } from "./event-pane";
 import { ReviewPane } from "./review-pane";
 import { TelemetryPane } from "./telemetry-pane";
 import type { ReviewRun } from "../../dist/work/reviews.js";
+import type { WaivedFinding } from "../../dist/types/work.js";
 import type { TelemetrySpanRecord } from "../../dist/telemetry/record.js";
 
 type WorkState = {
@@ -46,9 +47,11 @@ const COMMANDS = [
   "approve",
   "reject",
   "amend",
+  "waive",
   "status",
   "list",
   "artifacts",
+  "reviews",
   "test",
   "config",
 ] as const;
@@ -65,6 +68,7 @@ export function Console() {
   const [state, setState] = useState<WorkState | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [reviews, setReviews] = useState<ReviewRun[]>([]);
+  const [waivers, setWaivers] = useState<WaivedFinding[]>([]);
   const [events, setEvents] = useState<SessionEvent[]>([]);
   const [libraryTab, setLibraryTab] = useState<
     "artifacts" | "reviews" | "events" | "telemetry"
@@ -117,6 +121,7 @@ export function Console() {
         setState(null);
         setArtifacts([]);
         setReviews([]);
+        setWaivers([]);
         setEvents([]);
         return;
       }
@@ -138,7 +143,12 @@ export function Console() {
         { command: "reviews", args: [selected] },
         silentLog,
       );
-      setReviews((reviewJson as { reviews?: ReviewRun[] }).reviews ?? []);
+      const reviewPayload = reviewJson as {
+        reviews?: ReviewRun[];
+        waivers?: WaivedFinding[];
+      };
+      setReviews(reviewPayload.reviews ?? []);
+      setWaivers(reviewPayload.waivers ?? []);
       const eventJson = await runAndParse(
         token,
         { command: "events", args: [selected] },
@@ -532,7 +542,39 @@ export function Console() {
         </div>
         <div className="panel-body artifacts">
           {libraryTab === "reviews" ? (
-            <ReviewPane reviews={reviews} repo={repo} />
+            <ReviewPane
+              reviews={reviews}
+              waivers={waivers}
+              repo={repo}
+              workId={workId}
+              onOpenFile={
+                token
+                  ? (file, line) => openInEditorApi(token, file, line)
+                  : undefined
+              }
+              onWaive={
+                token && workId
+                  ? async (key, reason, explanation) => {
+                      setRunError(null);
+                      setLogs([]);
+                      await runAndParse(
+                        token,
+                        {
+                          command: "waive",
+                          args: [key],
+                          flags: {
+                            "work-id": workId,
+                            reason,
+                            ...(explanation ? { explanation } : {}),
+                          },
+                        },
+                        setLogs,
+                      );
+                      await snapshot(workId);
+                    }
+                  : undefined
+              }
+            />
           ) : libraryTab === "events" ? (
             <EventPane events={events} />
           ) : libraryTab === "telemetry" ? (
@@ -546,6 +588,11 @@ export function Console() {
                 artifact={a}
                 fallbackPath={`${repo.replace(/\\/g, "/").replace(/\/$/, "")}/.acd/work/${workId}/${a.name}`}
                 saving={savingName === a.name}
+                onOpen={
+                  token
+                    ? (path) => openInEditorApi(token, path, null)
+                    : undefined
+                }
                 onSave={async (name, contents) => {
                   if (!token) throw new Error("No session");
                   setSavingName(name);
@@ -629,6 +676,33 @@ function buildBody(opts: {
 }
 
 function silentLog(_fn: (prev: LogLine[]) => LogLine[]): void {}
+
+async function openInEditorApi(
+  token: string,
+  file: string,
+  line: number | null,
+): Promise<void> {
+  const res = await fetch("/api/open", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json",
+      [CSRF_HEADER]: token,
+    },
+    body: JSON.stringify({ file, line }),
+  });
+  const json = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    detail?: string;
+    command?: string;
+  };
+  if (!res.ok || json.ok === false) {
+    throw new Error(
+      json.error ?? json.detail ?? "Could not open file in editor",
+    );
+  }
+}
 
 async function runAndParse(
   token: string,

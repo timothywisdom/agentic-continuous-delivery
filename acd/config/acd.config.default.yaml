@@ -96,6 +96,9 @@ stages:
     block_on:
       - blocker
       - major
+    # After this many cycles, a still-blocking review pauses for guidance
+    # (waive / fix / change spec) instead of another revise loop.
+    max_cycles: 2
 
   # Open a PR via gh; body built from artifacts. No LLM by default.
   pr:
@@ -286,6 +289,12 @@ repo:
 
   # When true, PR body warns not to merge as the implementer identity (ACD #7).
   blockImplementerMerge: true
+
+  # UI "Open" runs this on the ACD host (not a vscode:// link). Tokens:
+  #   {file} absolute path · {line} number · {location} file or file:line
+  # Default discovery: ACD_EDITOR → cursor → code. Examples:
+  #   openCommand: cursor -g {location}
+  #   openCommand: nvim +{line} {file}
 
   # Acceptance-test layout (language-agnostic paths; override per project).
   # Implement scaffolds a shared support module under the first support root that

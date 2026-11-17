@@ -189,6 +189,74 @@
     "acceptanceHarnessReady": {
       "type": "boolean"
     },
+    "waivedFindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "false-positive",
+              "accepted-risk",
+              "out-of-scope",
+              "mitigated",
+              "duplicate"
+            ]
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actor": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "issue": {
+            "type": "string"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "reason",
+          "explanation",
+          "actor",
+          "at",
+          "file",
+          "issue",
+          "agent",
+          "line"
+        ],
+        "additionalProperties": false
+      }
+    },
     "lastError": {
       "anyOf": [
         {

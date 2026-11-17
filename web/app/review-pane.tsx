@@ -1,18 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { editorFileHref } from "../../dist/ui/artifacts.js";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReviewRun } from "../../dist/work/reviews.js";
+import type { WaivedFinding, WaiveReason } from "../../dist/types/work.js";
+import { WAIVE_REASONS } from "../../dist/types/work.js";
 
-type Finding = ReviewRun["findings"][number];
+type Finding = ReviewRun["findings"][number] & { key?: string };
 type Disposition = "new" | "persistent" | "resolved" | "unchanged";
 
 export function ReviewPane({
   reviews,
+  waivers = [],
   repo,
+  workId,
+  onWaive,
+  onOpenFile,
 }: {
   reviews: ReviewRun[];
+  waivers?: WaivedFinding[];
   repo: string;
+  workId?: string;
+  onWaive?: (
+    key: string,
+    reason: WaiveReason,
+    explanation: string | null,
+  ) => Promise<void> | void;
+  onOpenFile?: (file: string, line: number | null) => Promise<void> | void;
 }) {
   const latest = reviews.at(-1) ?? null;
   const [picked, setPicked] = useState<number | null>(null);
@@ -22,6 +35,9 @@ export function ReviewPane({
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
   const [file, setFile] = useState("all");
+  const [waiveTarget, setWaiveTarget] = useState<Finding | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const agents = useMemo(() => {
     if (!selected) return [];
@@ -42,6 +58,11 @@ export function ReviewPane({
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [selected]);
+
+  const waivedKeys = useMemo(
+    () => new Set(waivers.map((item) => item.key)),
+    [waivers],
+  );
 
   const visible = useMemo(() => {
     if (!selected) return [];
@@ -100,8 +121,21 @@ export function ReviewPane({
         <span className="review-meta">
           {blockCount} blocking · {selected.findings.length} total · {files.length} file
           {files.length === 1 ? "" : "s"}
+          {waivers.length > 0 ? ` · ${waivers.length} waived` : ""}
         </span>
       </div>
+
+      {waivers.length > 0 ? (
+        <div className="review-delta">
+          <span>Waived</span>
+          {waivers.map((item) => (
+            <span key={item.key} className="tag advisory" title={item.explanation ?? undefined}>
+              {item.reason}: {item.issue.slice(0, 48)}
+              {item.issue.length > 48 ? "…" : ""}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {selected.delta && selected.delta.cycle > 1 ? (
         <div className="review-delta">
@@ -209,7 +243,21 @@ export function ReviewPane({
                       key={`${finding.agent}-${finding.line ?? "x"}-${i}`}
                       finding={finding}
                       disposition={disposition(selected, finding)}
-                      href={commentHref(repo, finding)}
+                      pathLabel={commentPath(repo, finding)}
+                      waived={Boolean(finding.key && waivedKeys.has(finding.key))}
+                      onOpen={
+                        onOpenFile && finding.file
+                          ? () => onOpenFile(finding.file, finding.line)
+                          : undefined
+                      }
+                      onWaive={
+                        onWaive && finding.key && !waivedKeys.has(finding.key)
+                          ? () => {
+                              setFormError(null);
+                              setWaiveTarget(finding);
+                            }
+                          : undefined
+                      }
                     />
                   ))}
                 </ol>
@@ -228,7 +276,12 @@ export function ReviewPane({
                     key={`resolved-${finding.agent}-${i}`}
                     finding={finding}
                     disposition="resolved"
-                    href={commentHref(repo, finding)}
+                    pathLabel={commentPath(repo, finding)}
+                    onOpen={
+                      onOpenFile && finding.file
+                        ? () => onOpenFile(finding.file, finding.line)
+                        : undefined
+                    }
                   />
                 ))}
               </ol>
@@ -236,6 +289,162 @@ export function ReviewPane({
           ) : null}
         </div>
       </div>
+
+      {waiveTarget?.key && onWaive ? (
+        <WaiveOverlay
+          finding={waiveTarget}
+          workId={workId ?? ""}
+          busy={busy}
+          error={formError}
+          onCancel={() => {
+            if (busy) return;
+            setWaiveTarget(null);
+            setFormError(null);
+          }}
+          onSubmit={async (reason, explanation) => {
+            setBusy(true);
+            setFormError(null);
+            try {
+              await onWaive(waiveTarget.key!, reason, explanation);
+              setWaiveTarget(null);
+            } catch (err) {
+              setFormError(err instanceof Error ? err.message : String(err));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function WaiveOverlay({
+  finding,
+  workId,
+  busy,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  finding: Finding;
+  workId: string;
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (reason: WaiveReason, explanation: string | null) => Promise<void>;
+}) {
+  const [reason, setReason] = useState<WaiveReason>("accepted-risk");
+  const [explanation, setExplanation] = useState("");
+  const reasonRef = useRef<HTMLSelectElement>(null);
+  const key = finding.key ?? "";
+
+  useEffect(() => {
+    reasonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+
+  const preview = [
+    "acd waive",
+    key,
+    `--reason ${reason}`,
+    explanation.trim() ? `--explanation ${JSON.stringify(explanation.trim())}` : null,
+    workId ? `--work-id ${workId}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className="waive-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) onCancel();
+      }}
+    >
+      <form
+        className="waive-form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="waive-form-title"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSubmit(reason, explanation.trim() || null);
+        }}
+      >
+        <header>
+          <h3 id="waive-form-title">Drive CLI · waive</h3>
+          <button type="button" className="waive-close" disabled={busy} onClick={onCancel}>
+            Esc
+          </button>
+        </header>
+
+        <p className="waive-issue">{finding.issue}</p>
+        <p className="waive-meta">
+          {agentLabel(finding.agent)}
+          {finding.file ? ` · ${finding.file}` : ""}
+          {finding.line != null ? `:${finding.line}` : ""}
+        </p>
+
+        <label>
+          Finding key
+          <input value={key} readOnly spellCheck={false} />
+        </label>
+
+        <label>
+          --reason
+          <select
+            ref={reasonRef}
+            value={reason}
+            disabled={busy}
+            onChange={(e) => setReason(e.target.value as WaiveReason)}
+          >
+            {WAIVE_REASONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          --explanation (optional)
+          <textarea
+            value={explanation}
+            disabled={busy}
+            onChange={(e) => setExplanation(e.target.value)}
+            placeholder="Why this finding is waived"
+            rows={3}
+          />
+        </label>
+
+        {workId ? (
+          <label>
+            --work-id
+            <input value={workId} readOnly spellCheck={false} />
+          </label>
+        ) : null}
+
+        <pre className="waive-preview">{preview}</pre>
+
+        {error ? <div className="error-line">{error}</div> : null}
+
+        <div className="actions">
+          <button type="submit" className="run-btn" disabled={busy || !key}>
+            {busy ? "Running…" : "Run acd waive"}
+          </button>
+          <button type="button" disabled={busy} onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -243,12 +452,21 @@ export function ReviewPane({
 function Comment({
   finding,
   disposition: kind,
-  href,
+  pathLabel,
+  waived,
+  onOpen,
+  onWaive,
 }: {
   finding: Finding;
   disposition: Disposition;
-  href: string | null;
+  pathLabel: string | null;
+  waived?: boolean;
+  onOpen?: () => void;
+  onWaive?: () => void;
 }) {
+  const [opening, setOpening] = useState(false);
+  const [openError, setOpenError] = useState<string | null>(null);
+
   return (
     <li className={`review-comment ${finding.decision}`}>
       <div className="review-comment-top">
@@ -260,17 +478,39 @@ function Comment({
           {finding.category ?? "code"}
         </span>
         <span className={`tag ${finding.decision}`}>{finding.decision}</span>
+        {waived ? <span className="tag advisory">waived</span> : null}
         {kind !== "unchanged" ? <span className={`tag ${kind}`}>{kind}</span> : null}
         <span className="review-loc">
           {finding.line != null ? `line ${finding.line}` : "file"}
           {finding.scenario ? ` · ${finding.scenario}` : ""}
+          {finding.key ? ` · ${finding.key}` : ""}
         </span>
-        {href ? (
-          <a className="review-open" href={href}>
-            Open
-          </a>
+        {onOpen ? (
+          <button
+            type="button"
+            className="review-open"
+            title={pathLabel ?? finding.file}
+            disabled={opening}
+            onClick={() => {
+              setOpening(true);
+              setOpenError(null);
+              void Promise.resolve(onOpen())
+                .catch((err) => {
+                  setOpenError(err instanceof Error ? err.message : String(err));
+                })
+                .finally(() => setOpening(false));
+            }}
+          >
+            {opening ? "Opening…" : "Open"}
+          </button>
+        ) : null}
+        {onWaive ? (
+          <button type="button" className="review-waive" onClick={onWaive}>
+            Waive
+          </button>
         ) : null}
       </div>
+      {openError ? <p className="review-why error-line">{openError}</p> : null}
       <p className="review-issue">{finding.issue}</p>
       {finding.why ? <p className="review-why">{finding.why}</p> : null}
       {finding.evidence?.spec || finding.evidence?.code ? (
@@ -318,11 +558,11 @@ function sameFinding(a: Finding, b: Finding): boolean {
   return a.agent === b.agent && a.file === b.file && a.issue === b.issue && a.line === b.line;
 }
 
-function commentHref(repo: string, finding: Finding): string | null {
-  if (!repo || !finding.file) return null;
+function commentPath(repo: string, finding: Finding): string | null {
+  if (!finding.file) return null;
+  if (!repo) return finding.file;
   const abs = `${repo.replace(/\\/g, "/").replace(/\/$/, "")}/${finding.file.replace(/^\/+/, "")}`;
-  const href = editorFileHref(abs);
-  return finding.line != null ? `${href}:${finding.line}` : href;
+  return finding.line != null ? `${abs}:${finding.line}` : abs;
 }
 
 function agentLabel(agent: string): string {

@@ -929,10 +929,117 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
-.review-open {
+.review-open,
+.review-waive {
   margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   color: var(--accent);
   font-size: 12px;
+  padding: 4px 10px;
+}
+
+.review-waive {
+  background: #2a2416;
+  border-color: var(--accent);
+}
+
+.review-open + .review-waive {
+  margin-left: 0;
+}
+
+.review-open:hover,
+.review-waive:hover {
+  border-color: var(--text);
+}
+
+.review-open:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.waive-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 10, 14, 0.72);
+}
+
+.waive-form {
+  width: min(440px, 100%);
+  max-height: min(90vh, 640px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+.waive-form header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.waive-form h3 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.waive-close {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.waive-issue {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.waive-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.waive-form label {
+  width: 100%;
+}
+
+.waive-form input,
+.waive-form select,
+.waive-form textarea {
+  width: 100%;
+}
+
+.waive-preview {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font-family: "IBM Plex Mono", "ui-monospace", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .review-issue {
@@ -968,10 +1075,14 @@ textarea {
 }
 
 .artifact-file-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
   color: var(--accent);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .artifact-file-link:hover {

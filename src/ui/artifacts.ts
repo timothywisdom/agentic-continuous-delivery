@@ -8,7 +8,10 @@ export function artifactKind(name: string): ArtifactKind {
   return "text";
 }
 
-/** Open a local file in VS Code / Cursor from the UI (http pages cannot use file://). */
+/**
+ * Legacy vscode:// deep link. Prefer {@link openInEditor} / POST /api/open —
+ * custom protocol handlers fail in embedded browsers and break under WSL.
+ */
 export function editorFileHref(absPath: string): string {
   const normalized = absPath.replace(/\\/g, "/");
   const path = normalized.startsWith("/") ? normalized : `/${normalized}`;

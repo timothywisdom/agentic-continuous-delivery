@@ -6,6 +6,7 @@ import type { AcdConfig, CliOverrides } from "../types/config.js";
 import type { ImplementJob, ReviewFinding } from "../types/work.js";
 import { emit } from "../work/events.js";
 import { listReviewRuns } from "../work/reviews.js";
+import { filterWaivedFindings, listWaivers, reviewMaxCycles } from "../work/waive.js";
 import {
   readArtifact,
   readEvents,
@@ -41,10 +42,24 @@ export async function reviseFromLatestReview(
       "Pipeline is red. Only `acd fix` may generate changes until it is green.",
     );
   }
-  const latest = listReviewRuns(readEvents(repoRoot, workId)).at(-1);
+  const runs = listReviewRuns(readEvents(repoRoot, workId));
+  const latest = runs.at(-1);
   if (!latest) {
     throw new Error("No review to revise from. Run `acd review` first.");
   }
+  const maxCycles = reviewMaxCycles(config);
+  if (latest.decision === "block" && runs.length > maxCycles) {
+    throw new Error(
+      `Review cycle budget exceeded (${runs.length} > max_cycles=${maxCycles}). ` +
+        `Waive blockers with \`acd waive <key> --reason …\`, change the spec, or \`acd amend review --note "…"\`. ` +
+        "Revise will not auto-run past the budget.",
+    );
+  }
+
+  const { kept: findings } = filterWaivedFindings(
+    latest.findings,
+    listWaivers(state),
+  );
 
   const behavior = readArtifact(repoRoot, workId, "behavior.feature");
   const feature = readArtifact(repoRoot, workId, "feature.md");
@@ -53,7 +68,7 @@ export async function reviseFromLatestReview(
     behavior,
     feature,
     acceptance,
-    findings: latest.findings,
+    findings,
     absorbedKeys: state.absorbedReviewFindings,
   });
 

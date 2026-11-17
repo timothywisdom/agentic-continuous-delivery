@@ -25,6 +25,9 @@ import { runTests } from "../hooks/mechanical.js";
 import { listReviewRuns } from "../work/reviews.js";
 import { listArtifacts, listWorkIds, readEvents, readState, resolveWorkId, saveWorkArtifact } from "../work/store.js";
 import { emit } from "../work/events.js";
+import { parseWaiveReason, waiveFindings } from "../work/waive.js";
+import { WAIVE_REASONS } from "../types/work.js";
+import { findingKey } from "../spec/revise.js";
 import { readFileSync } from "node:fs";
 import { startUi } from "./ui.js";
 import {
@@ -56,6 +59,7 @@ Usage:
   acd approve <stage>
   acd reject <stage> --reason "..."
   acd amend <stage> [--note "..."] [--continue]
+  acd waive <findingKey...> --reason <enum> [--explanation "..."]
   acd status [work-id]
   acd list
   acd artifacts [work-id]
@@ -69,6 +73,9 @@ HitL / guidance:
   approve  — accept stage output and continue the pipeline
   reject   — discard the pause with a reason (re-run the stage later)
   amend    — keep artifacts, optionally add guidance, re-run (--continue)
+  waive    — accept a review finding (human only). --reason is one of:
+             ${WAIVE_REASONS.join(" | ")}
+             optional --explanation adds free-text context
 
 Global flags:
   --work-id <id>   --harness <name>   --tier classify|low|med|high
@@ -415,6 +422,30 @@ async function dispatchCommand(
     return;
   }
 
+  if (cmd === "waive") {
+    const reason = parseWaiveReason(
+      typeof flags.reason === "string" ? flags.reason : undefined,
+    );
+    const explanation =
+      typeof flags.explanation === "string" ? flags.explanation : null;
+    const workId = resolveWorkId(repoRoot, overrides.workId);
+    const result = waiveFindings(repoRoot, {
+      workId,
+      keys: args,
+      reason,
+      explanation,
+      actor: process.env.USER ?? "human",
+    });
+    noteValue(
+      `waived ${result.waived.length} finding(s) (${reason})`,
+      result,
+      span,
+    );
+    printJson(result);
+    if (result.missingKeys.length > 0) process.exitCode = 1;
+    return;
+  }
+
   if (cmd === "status") {
     const workId = resolveWorkId(repoRoot, args[0] ?? overrides.workId);
     const state = readState(repoRoot, workId);
@@ -450,9 +481,20 @@ async function dispatchCommand(
 
   if (cmd === "reviews") {
     const workId = resolveWorkId(repoRoot, args[0] ?? overrides.workId);
-    const reviews = listReviewRuns(readEvents(repoRoot, workId));
+    const state = readState(repoRoot, workId);
+    const reviews = listReviewRuns(readEvents(repoRoot, workId)).map((run) => ({
+      ...run,
+      findings: run.findings.map((finding) => ({
+        ...finding,
+        key: findingKey(finding),
+      })),
+    }));
     const latest = reviews.at(-1);
-    const payload = { workId, reviews };
+    const payload = {
+      workId,
+      reviews,
+      waivers: state.waivedFindings ?? [],
+    };
     noteValue(
       decisionFromCommand("reviews", {
         reviewCount: reviews.length,

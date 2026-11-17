@@ -91,6 +91,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "openCommand": {
+          "type": "string"
         }
       },
       "required": [],

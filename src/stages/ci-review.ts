@@ -1,7 +1,7 @@
 import { ciReviewInputSchema, ciReviewOutputSchema } from "../schemas/zod.js";
 import type { StageDef } from "../orchestrator/index.js";
 import { runTests } from "../hooks/mechanical.js";
-import { reviewStage } from "./review.js";
+import { executeReview } from "./review.js";
 import type { CiReviewInput, CiReviewOutput } from "../types/work.js";
 import { emit } from "../work/events.js";
 import { latestWorkId, resolveWorkId } from "../work/store.js";
@@ -16,9 +16,10 @@ export const ciReviewStage: StageDef<CiReviewInput, CiReviewOutput> = {
       input.workId ?? latestWorkId(ctx.repoRoot) ?? undefined,
     );
     const tests = runTests(ctx.config, ctx.repoRoot);
-    const review = await reviewStage.run(
+    const review = await executeReview(
       { workId },
       { ...ctx, state: { ...ctx.state, id: workId } },
+      { recordPipelineEvent: false },
     );
     const decision: "pass" | "block" =
       tests.ok && review.decision === "pass" ? "pass" : "block";

@@ -143,14 +143,35 @@ async function runStageInner<I, O>(
     emit(ctx.repoRoot, state.id, "stage.start", def.name, { input });
   }
 
+  const guidanceFromStage =
+    state.awaitingGuidance === def.name ? state.awaitingGuidance : null;
+  const guidanceNoteFromStage =
+    guidanceFromStage && state.guidanceNote ? state.guidanceNote : null;
+
   state = {
     ...state,
     lastStageOutput: valid as unknown as Record<string, unknown>,
     currentStage: def.name,
-    awaitingGuidance: null,
-    guidanceNote: null,
+    awaitingGuidance: guidanceFromStage,
+    guidanceNote: guidanceNoteFromStage,
     lastError: null,
   };
+
+  // Review over max_cycles already set awaitingGuidance inside the stage.
+  if (state.awaitingGuidance === def.name) {
+    writeState(ctx.repoRoot, state);
+    emit(ctx.repoRoot, state.id, "stage.awaiting_guidance", def.name, {
+      output: valid,
+      guidanceNote: state.guidanceNote,
+    });
+    return {
+      output: valid,
+      state,
+      awaitingApproval: false,
+      awaitingGuidance: true,
+      nextStage: null,
+    };
+  }
 
   const hitl = stageRequiresHumanApproval(ctx.config, def.name);
   if (hitl) {
@@ -199,6 +220,7 @@ function placeholderIntakeState(sourceText: string): WorkState {
     implementQueue: null,
     absorbedReviewFindings: [],
     acceptanceHarnessReady: false,
+    waivedFindings: [],
     lastError: null,
     lastStageOutput: null,
     approvedStages: [],

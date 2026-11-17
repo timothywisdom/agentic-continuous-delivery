@@ -321,6 +321,7 @@ function state(id: string): WorkState {
     baseSha: null,
     reviewSha: null,
     acceptanceHarnessReady: false,
+    waivedFindings: [],
     lastError: null,
     lastStageOutput: null,
     approvedStages: [],

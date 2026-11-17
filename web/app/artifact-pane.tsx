@@ -4,7 +4,6 @@ import { useEffect, useState, type KeyboardEvent, type MouseEvent, type ReactNod
 import Markdown from "react-markdown";
 import {
   artifactKind,
-  editorFileHref,
   tokenizeJson,
   tokenizeYaml,
   type SyntaxToken,
@@ -16,11 +15,13 @@ export function ArtifactPane({
   artifact,
   fallbackPath,
   onSave,
+  onOpen,
   saving,
 }: {
   artifact: Artifact;
   fallbackPath: string;
   onSave: (name: string, contents: string) => Promise<void>;
+  onOpen?: (path: string) => Promise<void> | void;
   saving?: boolean;
 }) {
   const path = artifact.path || fallbackPath;
@@ -55,17 +56,34 @@ export function ArtifactPane({
     }
   };
 
+  const openFile = async (e: MouseEvent) => {
+    stopToggle(e);
+    if (!onOpen) return;
+    setError(null);
+    try {
+      await onOpen(path);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return (
     <details className="artifact-pane">
       <summary className="artifact-summary">
-        <a
-          className="artifact-file-link"
-          href={editorFileHref(path)}
-          title={path}
-          onClick={stopToggle}
-        >
-          {artifact.name}
-        </a>
+        {onOpen ? (
+          <button
+            type="button"
+            className="artifact-file-link"
+            title={`Open ${path}`}
+            onClick={(e) => void openFile(e)}
+          >
+            {artifact.name}
+          </button>
+        ) : (
+          <span className="artifact-file-link" title={path}>
+            {artifact.name}
+          </span>
+        )}
         {dirty ? <span className="unsaved">unsaved</span> : null}
         <span className="view-toggle" role="group" aria-label="Artifact view">
           <button

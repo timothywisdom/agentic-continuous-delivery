@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { AGENT_ROLES, HITL_PRESETS, TIERS } from "../types/config.js";
 import { STAGE_NAMES } from "../types/stages.js";
-import { FINDING_CATEGORIES, FINDING_SEVERITIES } from "../types/work.js";
+import {
+  FINDING_CATEGORIES,
+  FINDING_SEVERITIES,
+  WAIVE_REASONS,
+} from "../types/work.js";
 
 export const implementJobSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -24,12 +28,26 @@ export const driverKindSchema = z.enum([
 
 export const findingSeveritySchema = z.enum(FINDING_SEVERITIES);
 export const findingCategorySchema = z.enum(FINDING_CATEGORIES);
+export const waiveReasonSchema = z.enum(WAIVE_REASONS);
+
+export const waivedFindingSchema = z.object({
+  key: z.string(),
+  reason: waiveReasonSchema,
+  explanation: z.string().nullable(),
+  actor: z.string(),
+  at: z.string(),
+  file: z.string(),
+  issue: z.string(),
+  agent: z.string(),
+  line: z.number().nullable(),
+});
 
 export const stageConfigSchema = z.object({
   harness: z.string().optional(),
   tier: modelTierSchema.optional(),
   require_human_approval: z.boolean().optional(),
   block_on: z.array(findingSeveritySchema).optional(),
+  max_cycles: z.number().int().positive().optional(),
 });
 
 export const agentConfigSchema = z.object({
@@ -95,6 +113,7 @@ export const acdConfigSchema = z.object({
       blockImplementerMerge: z.boolean().optional(),
       acceptanceTestRoots: z.array(z.string()).optional(),
       acceptanceSupportRoots: z.array(z.string()).optional(),
+      openCommand: z.string().optional(),
     })
     .optional(),
 });
@@ -116,6 +135,7 @@ export const workStateSchema = z.object({
   reviewSha: z.string().nullable().default(null),
   /** Shared acceptance support module has been scaffolded for this work item. */
   acceptanceHarnessReady: z.boolean().default(false),
+  waivedFindings: z.array(waivedFindingSchema).default([]),
   lastError: z.string().nullable(),
   lastStageOutput: z.record(z.unknown()).nullable(),
   approvedStages: z.array(stageNameSchema),
@@ -246,6 +266,7 @@ export const reviewOutputSchema = z.object({
     }),
   ),
   delta: reviewDeltaSchema.optional(),
+  budgetExceeded: z.boolean().optional(),
 });
 
 export const prInputSchema = z.object({

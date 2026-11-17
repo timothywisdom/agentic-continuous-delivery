@@ -44,6 +44,8 @@ export interface WorkState {
   reviewSha?: string | null;
   /** Shared acceptance support module has been scaffolded for this work item. */
   acceptanceHarnessReady?: boolean;
+  /** Findings a human waived; later reviews must not re-raise matches. */
+  waivedFindings?: WaivedFinding[];
   lastError: string | null;
   lastStageOutput: Record<string, unknown> | null;
   approvedStages: StageName[];
@@ -117,6 +119,28 @@ export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
 export const FINDING_CATEGORIES = ["test", "product", "code", "policy"] as const;
 export type FindingCategory = (typeof FINDING_CATEGORIES)[number];
 
+/** Why a human waived a review finding (mandatory machine reason). */
+export const WAIVE_REASONS = [
+  "false-positive",
+  "accepted-risk",
+  "out-of-scope",
+  "mitigated",
+  "duplicate",
+] as const;
+export type WaiveReason = (typeof WAIVE_REASONS)[number];
+
+export interface WaivedFinding {
+  key: string;
+  reason: WaiveReason;
+  explanation: string | null;
+  actor: string;
+  at: string;
+  file: string;
+  issue: string;
+  agent: string;
+  line: number | null;
+}
+
 export interface FindingEvidence {
   /** Quoted Gherkin / acceptance line. Required for test and product findings. */
   spec?: string;
@@ -165,6 +189,8 @@ export interface ReviewOutput {
   findings: ReviewFinding[];
   mechanical: { name: string; ok: boolean; detail?: string }[];
   delta?: ReviewDelta;
+  /** True when cycle exceeded stages.review.max_cycles while still blocking. */
+  budgetExceeded?: boolean;
 }
 
 export interface PrInput {
