@@ -50,7 +50,7 @@ Usage:
   acd intake --from "<plain english>"
   acd specify [--artifact intent|behavior|feature|acceptance|all]
   acd implement [--scenario <id>]   # id is the heading label (1 or E10a); omit: review follow-ups, else remaining scenarios
-  acd review
+  acd review [--mode full|delta] # full = complete audit (default); delta = verify since last review
   acd revise                     # fold the latest blocking review into the spec
   acd pr
   acd ci-review                 # alias: ci_review
@@ -260,7 +260,15 @@ async function dispatchCommand(
 
   if (cmd === "review") {
     const workId = resolveWorkId(repoRoot, overrides.workId);
-    const result = await runStage(reviewStage, { workId }, { ...ctx, workId });
+    const modeRaw = typeof flags.mode === "string" ? flags.mode.trim() : "full";
+    if (modeRaw !== "full" && modeRaw !== "delta") {
+      throw new Error("acd review --mode must be full or delta");
+    }
+    const result = await runStage(
+      reviewStage,
+      { workId, mode: modeRaw },
+      { ...ctx, workId },
+    );
     noteValue(decisionFromStageResult("review", result), stagePayload(result), span);
     printJson(result);
     if (result.output?.decision === "block") process.exitCode = 1;

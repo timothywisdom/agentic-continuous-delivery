@@ -13,20 +13,20 @@ export interface FindingVerification {
 }
 
 /**
- * Cycle 1 keeps every blocking finding.
- * Later cycles block only when a previous blocker is still present, the finding
+ * `full` keeps every blocking finding.
+ * `delta` blocks only when a previous blocker is still present, the finding
  * sits on a line changed since the last review, or a security/semantic reviewer raised it.
  * Everything else is advisory: shown, and not a block.
  */
 export function applyCycleGate(input: {
-  cycle: number;
+  mode: "full" | "delta";
   findings: ReviewFinding[];
   previous: ReviewFinding[];
   changed: ChangedSpan[];
   verifications: FindingVerification[];
 }): ReviewFinding[] {
   const findings = [...input.findings];
-  if (input.cycle < 2) return findings;
+  if (input.mode !== "delta") return findings;
 
   for (const prev of input.previous) {
     if (prev.decision !== "block") continue;

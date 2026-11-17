@@ -71,6 +71,32 @@ describe("review cycle gate", () => {
     delete process.env.ACD_STUB_REVIEW_PAYLOAD;
   });
 
+  it("rejects --mode delta when this work item has no prior review", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "acd-review-delta-none-"));
+    writeFileSync(join(repo, "package.json"), JSON.stringify({ scripts: {} }));
+    writeFileSync(join(repo, "acd.config.yaml"), STUB);
+    const workId = "w-no-prior";
+    writeState(repo, state(workId));
+    writeArtifact(repo, workId, "intent.md", "Add\n");
+    writeArtifact(
+      repo,
+      workId,
+      "behavior.feature",
+      "Feature: add\n\n  Scenario: 1. add\n    Then the display shows 1\n",
+    );
+    writeArtifact(repo, workId, "feature.md", "## Feature\n");
+    writeArtifact(repo, workId, "system-constraints.yaml", "system_constraints: {}\n");
+    const config = applyCliOverrides(loadRepoConfig(repo), {});
+
+    await expect(
+      runStage(
+        reviewStage,
+        { workId, mode: "delta" },
+        { repoRoot: repo, config, overrides: {}, workId },
+      ),
+    ).rejects.toThrow(/no prior review|--mode delta|full review/i);
+  });
+
   it("passes when lint is skipped and reviewers report nothing", async () => {
     const repo = mkdtempSync(join(tmpdir(), "acd-review-pass-"));
     writeFileSync(join(repo, "package.json"), JSON.stringify({ scripts: {} }));
@@ -166,13 +192,80 @@ describe("review cycle gate", () => {
     const config = applyCliOverrides(loadRepoConfig(repo), {});
     const result = await runStage(
       reviewStage,
-      { workId },
+      { workId, mode: "delta" },
       { repoRoot: repo, config, overrides: {}, workId },
     );
     const findings = result.output?.findings ?? [];
     expect(findings.find((item) => item.file === "untouched.js")?.decision).toBe("advisory");
     expect(findings.find((item) => item.file === "src/new.js")?.decision).toBe("block");
     expect(findings.find((item) => item.file === "old.js")?.decision).toBe("block");
+    expect(result.output?.decision).toBe("block");
+  });
+
+  it("keeps off-diff findings blocking in full mode even after a prior review", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "acd-review-full-"));
+    writeFileSync(join(repo, "package.json"), JSON.stringify({ scripts: {} }));
+    writeFileSync(join(repo, "acd.config.yaml"), STUB);
+    git(repo, "git init");
+    git(repo, "git add package.json acd.config.yaml");
+    git(repo, "git commit -m init");
+    const workId = "w-full";
+    writeState(repo, state(workId, { baseSha: git(repo, "git rev-parse HEAD"), reviewSha: git(repo, "git rev-parse HEAD") }));
+    writeArtifact(repo, workId, "intent.md", "Add\n");
+    writeArtifact(repo, workId, "behavior.feature", "Feature: x\n\n  Scenario: 1. x\n    Then y\n");
+    writeArtifact(repo, workId, "feature.md", "## Feature\n");
+    writeArtifact(repo, workId, "system-constraints.yaml", "system_constraints: {}\n");
+    emit(repo, workId, "review.complete", "review", {
+      decision: "block",
+      findingCount: 1,
+      reviewSha: git(repo, "git rev-parse HEAD"),
+      findings: [
+        {
+          agent: "test_fidelity",
+          file: "old.js",
+          line: 1,
+          issue: "Old scenario is not exercised",
+          why: "The test never runs it",
+          severity: "major",
+          category: "test",
+          scenario: null,
+          evidence: { spec: "Then y" },
+          decision: "block",
+        },
+      ],
+    });
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "new.js"), "const created = 1;\n");
+    git(repo, "git add src/new.js");
+    git(repo, "git commit -m change");
+
+    process.env.ACD_STUB_REVIEW_PAYLOAD = JSON.stringify({
+      test_fidelity: {
+        decision: "block",
+        findings: [
+          {
+            file: "untouched.js",
+            line: 1,
+            issue: "A brand new complaint about untouched code",
+            why: "This line did not change",
+            severity: "major",
+            category: "test",
+            evidence: { spec: "Then y" },
+          },
+        ],
+      },
+      default: { decision: "pass", findings: [] },
+    });
+
+    const config = applyCliOverrides(loadRepoConfig(repo), {});
+    const result = await runStage(
+      reviewStage,
+      { workId, mode: "full" },
+      { repoRoot: repo, config, overrides: {}, workId },
+    );
+    expect(result.output?.findings.find((item) => item.file === "untouched.js")?.decision).toBe(
+      "block",
+    );
     expect(result.output?.decision).toBe("block");
   });
 });

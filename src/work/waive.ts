@@ -10,6 +10,25 @@ import { WAIVE_REASONS } from "../types/work.js";
 import { emit } from "./events.js";
 import { listReviewRuns } from "./reviews.js";
 import { readEvents, readState, writeState } from "./store.js";
+import {
+  filterWaivedFindings as filterWaivedFindingsPure,
+  findingMatchesWaiver as findingMatchesWaiverPure,
+} from "./waive-match.js";
+
+/** Drop findings that match a recorded waiver (by key or file+issue, any agent). */
+export function filterWaivedFindings(
+  findings: ReviewFinding[],
+  waived: WaivedFinding[],
+): { kept: ReviewFinding[]; dropped: ReviewFinding[] } {
+  return filterWaivedFindingsPure(findings, waived, { keyOf: findingKey });
+}
+
+export function findingMatchesWaiver(
+  finding: ReviewFinding,
+  waiver: WaivedFinding,
+): boolean {
+  return findingMatchesWaiverPure(finding, waiver, { keyOf: findingKey });
+}
 
 export function isWaiveReason(value: string): value is WaiveReason {
   return (WAIVE_REASONS as readonly string[]).includes(value);
@@ -138,48 +157,6 @@ export function waiveFindings(
 
 export function listWaivers(state: WorkState): WaivedFinding[] {
   return state.waivedFindings ?? [];
-}
-
-/** Drop findings that match a recorded waiver (by key or file+issue, any agent). */
-export function filterWaivedFindings(
-  findings: ReviewFinding[],
-  waived: WaivedFinding[],
-): { kept: ReviewFinding[]; dropped: ReviewFinding[] } {
-  // Always copy — callers often clear/reuse the input array after filtering.
-  if (waived.length === 0) return { kept: [...findings], dropped: [] };
-  const kept: ReviewFinding[] = [];
-  const dropped: ReviewFinding[] = [];
-  for (const finding of findings) {
-    if (waived.some((item) => findingMatchesWaiver(finding, item))) {
-      dropped.push(finding);
-    } else {
-      kept.push(finding);
-    }
-  }
-  return { kept, dropped };
-}
-
-export function findingMatchesWaiver(
-  finding: ReviewFinding,
-  waiver: WaivedFinding,
-): boolean {
-  if (findingKey(finding) === waiver.key) return true;
-  // Same file+issue from another agent still counts (duplicate reviewers).
-  return sameFileAndIssue(finding, waiver);
-}
-
-function sameFileAndIssue(
-  finding: ReviewFinding,
-  waiver: Pick<WaivedFinding, "file" | "issue">,
-): boolean {
-  const fileA = finding.file.trim().toLowerCase();
-  const fileB = waiver.file.trim().toLowerCase();
-  if (fileA !== fileB) return false;
-  return normalizeIssue(finding.issue) === normalizeIssue(waiver.issue);
-}
-
-function normalizeIssue(issue: string): string {
-  return issue.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 export function reviewMaxCycles(config: {

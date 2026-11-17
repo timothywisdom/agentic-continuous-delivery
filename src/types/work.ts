@@ -178,9 +178,15 @@ export interface ReviewDelta {
   summary: ReviewDeltaSummary;
 }
 
+/** How `acd review` scopes blocking findings. Default is a full audit. */
+export const REVIEW_MODES = ["full", "delta"] as const;
+export type ReviewMode = (typeof REVIEW_MODES)[number];
+
 export interface ReviewInput {
   workId: string;
   diff?: string;
+  /** `full` = audit everything; `delta` = verify since last review. Default: full. */
+  mode?: ReviewMode;
 }
 
 export interface ReviewOutput {

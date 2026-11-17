@@ -232,9 +232,12 @@ export const implementOutputSchema = z.object({
   skippedScenarios: z.array(z.number().int().positive()),
 });
 
+export const reviewModeSchema = z.enum(["full", "delta"]);
+
 export const reviewInputSchema = z.object({
   workId: z.string(),
   diff: z.string().optional(),
+  mode: reviewModeSchema.default("full"),
 });
 
 export const reviewDeltaSummarySchema = z.object({

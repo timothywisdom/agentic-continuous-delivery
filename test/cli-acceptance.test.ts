@@ -129,6 +129,8 @@ describe("CLI acceptance", () => {
       "--from",
       "--artifact",
       "--scenario",
+      "--mode",
+      "full|delta",
       "--reason",
       "--note",
       "--continue",

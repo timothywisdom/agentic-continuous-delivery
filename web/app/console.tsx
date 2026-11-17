@@ -15,6 +15,7 @@ import { TelemetryPane } from "./telemetry-pane";
 import type { ReviewRun } from "../../dist/work/reviews.js";
 import type { WaivedFinding } from "../../dist/types/work.js";
 import type { TelemetrySpanRecord } from "../../dist/telemetry/record.js";
+import { openReviewFindings } from "../../dist/ui/review-view.js";
 
 type WorkState = {
   id: string;
@@ -77,6 +78,7 @@ export function Console() {
   const [fromText, setFromText] = useState("");
   const [artifact, setArtifact] = useState("all");
   const [scenario, setScenario] = useState("");
+  const [reviewMode, setReviewMode] = useState<"full" | "delta">("full");
   const [stageArg, setStageArg] = useState("specify");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
@@ -208,6 +210,7 @@ export function Console() {
         fromText,
         artifact,
         scenario,
+        reviewMode,
         stageArg,
         reason,
         note,
@@ -414,6 +417,18 @@ export function Console() {
                 />
               </label>
             ) : null}
+            {command === "review" ? (
+              <label>
+                --mode
+                <select
+                  value={reviewMode}
+                  onChange={(e) => setReviewMode(e.target.value as "full" | "delta")}
+                >
+                  <option value="full">full (complete audit)</option>
+                  <option value="delta">delta (verify since last review)</option>
+                </select>
+              </label>
+            ) : null}
             {command === "approve" || command === "reject" || command === "amend" ? (
               <label>
                 stage
@@ -515,9 +530,13 @@ export function Console() {
             onClick={() => setLibraryTab("reviews")}
           >
             Reviews
-            {(reviews.at(-1)?.findings.length ?? 0) > 0 ? (
-              <span className="tab-count">{reviews.at(-1)?.findings.length}</span>
-            ) : null}
+            {(() => {
+              const open =
+                reviews.at(-1) != null
+                  ? openReviewFindings(reviews.at(-1)!.findings, waivers).length
+                  : 0;
+              return open > 0 ? <span className="tab-count">{open}</span> : null;
+            })()}
           </button>
           <button
             type="button"
@@ -639,6 +658,7 @@ function buildBody(opts: {
   fromText: string;
   artifact: string;
   scenario: string;
+  reviewMode: "full" | "delta";
   stageArg: string;
   reason: string;
   note: string;
@@ -662,6 +682,7 @@ function buildBody(opts: {
   if (opts.command === "intake") flags.from = opts.fromText;
   if (opts.command === "specify") flags.artifact = opts.artifact;
   if (opts.command === "implement" && opts.scenario) flags.scenario = opts.scenario;
+  if (opts.command === "review") flags.mode = opts.reviewMode;
   if (opts.command === "approve" || opts.command === "reject" || opts.command === "amend") {
     args.push(opts.stageArg);
   }

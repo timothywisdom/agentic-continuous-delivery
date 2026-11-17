@@ -4,6 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReviewRun } from "../../dist/work/reviews.js";
 import type { WaivedFinding, WaiveReason } from "../../dist/types/work.js";
 import { WAIVE_REASONS } from "../../dist/types/work.js";
+import {
+  openReviewFindings,
+  resolvedReviewFindings,
+  reviewFileCounts,
+  reviewToolbarCounts,
+} from "../../dist/ui/review-view.js";
 
 type Finding = ReviewRun["findings"][number] & { key?: string };
 type Disposition = "new" | "persistent" | "resolved" | "unchanged";
@@ -39,25 +45,37 @@ export function ReviewPane({
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const openFindings = useMemo(
+    () => (selected ? openReviewFindings(selected.findings, waivers) : []),
+    [selected, waivers],
+  );
+
+  const resolvedFindings = useMemo(
+    () =>
+      selected
+        ? resolvedReviewFindings(
+            selected.findings,
+            waivers,
+            selected.delta?.resolved ?? [],
+          )
+        : [],
+    [selected, waivers],
+  );
+
   const agents = useMemo(() => {
-    if (!selected) return [];
-    return [...new Set(selected.findings.map((f) => f.agent))].sort();
-  }, [selected]);
+    return [...new Set(openFindings.map((f) => f.agent))].sort();
+  }, [openFindings]);
 
   const categories = useMemo(() => {
-    if (!selected) return [];
-    return [...new Set(selected.findings.map((f) => f.category ?? "code"))].sort();
-  }, [selected]);
+    return [...new Set(openFindings.map((f) => f.category ?? "code"))].sort();
+  }, [openFindings]);
 
-  const files = useMemo(() => {
-    if (!selected) return [];
-    const counts = new Map<string, number>();
-    for (const finding of selected.findings) {
-      const key = finding.file || "(no file)";
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [selected]);
+  const files = useMemo(() => reviewFileCounts(openFindings), [openFindings]);
+
+  useEffect(() => {
+    if (file === "all") return;
+    if (!files.some(([path]) => path === file)) setFile("all");
+  }, [file, files]);
 
   const waivedKeys = useMemo(
     () => new Set(waivers.map((item) => item.key)),
@@ -65,9 +83,8 @@ export function ReviewPane({
   );
 
   const visible = useMemo(() => {
-    if (!selected) return [];
     const q = query.trim().toLowerCase();
-    return selected.findings.filter((finding) => {
+    return openFindings.filter((finding) => {
       if (agent !== "all" && finding.agent !== agent) return false;
       if (category !== "all" && (finding.category ?? "code") !== category) {
         return false;
@@ -79,9 +96,17 @@ export function ReviewPane({
         .toLowerCase()
         .includes(q);
     });
-  }, [selected, agent, category, file, query]);
+  }, [openFindings, agent, category, file, query]);
 
   const grouped = useMemo(() => groupByCategoryThenFile(visible), [visible]);
+
+  const counts = useMemo(
+    () =>
+      selected
+        ? reviewToolbarCounts(selected.findings, waivers)
+        : { open: 0, blocking: 0, files: 0, waived: 0 },
+    [selected, waivers],
+  );
 
   if (!selected) {
     return (
@@ -90,8 +115,6 @@ export function ReviewPane({
       </p>
     );
   }
-
-  const blockCount = selected.findings.filter((f) => f.decision === "block").length;
 
   return (
     <div className="review">
@@ -110,32 +133,24 @@ export function ReviewPane({
           >
             {[...reviews].reverse().map((run) => (
               <option key={run.index} value={run.index}>
-                {`${run.index === latest?.index ? "Latest · " : ""}#${run.index} · ${formatWhen(run.at)} · ${run.decision} · ${run.findings.length} comment${run.findings.length === 1 ? "" : "s"}`}
+                {`${run.index === latest?.index ? "Latest · " : ""}#${run.index} · ${formatWhen(run.at)} · ${run.decision} · ${
+                  run === selected
+                    ? counts.open
+                    : openReviewFindings(run.findings, waivers).length
+                } open`}
               </option>
             ))}
           </select>
         </label>
-        <span className={`review-decision ${selected.decision}`}>
-          {selected.decision === "block" ? "Changes requested" : "No blocking comments"}
+        <span className={`review-decision ${counts.blocking > 0 ? "block" : "pass"}`}>
+          {counts.blocking > 0 ? "Changes requested" : "No blocking comments"}
         </span>
         <span className="review-meta">
-          {blockCount} blocking · {selected.findings.length} total · {files.length} file
-          {files.length === 1 ? "" : "s"}
-          {waivers.length > 0 ? ` · ${waivers.length} waived` : ""}
+          {counts.blocking} blocking · {counts.open} open · {counts.files} file
+          {counts.files === 1 ? "" : "s"}
+          {counts.waived > 0 ? ` · ${counts.waived} waived` : ""}
         </span>
       </div>
-
-      {waivers.length > 0 ? (
-        <div className="review-delta">
-          <span>Waived</span>
-          {waivers.map((item) => (
-            <span key={item.key} className="tag advisory" title={item.explanation ?? undefined}>
-              {item.reason}: {item.issue.slice(0, 48)}
-              {item.issue.length > 48 ? "…" : ""}
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       {selected.delta && selected.delta.cycle > 1 ? (
         <div className="review-delta">
@@ -206,7 +221,7 @@ export function ReviewPane({
             onClick={() => setFile("all")}
           >
             <span>All files</span>
-            <span>{selected.findings.length}</span>
+            <span>{openFindings.length}</span>
           </button>
           {files.map(([path, count]) => (
             <button
@@ -244,7 +259,6 @@ export function ReviewPane({
                       finding={finding}
                       disposition={disposition(selected, finding)}
                       pathLabel={commentPath(repo, finding)}
-                      waived={Boolean(finding.key && waivedKeys.has(finding.key))}
                       onOpen={
                         onOpenFile && finding.file
                           ? () => onOpenFile(finding.file, finding.line)
@@ -264,19 +278,24 @@ export function ReviewPane({
               </section>
             ))
           )}
-          {selected.delta && selected.delta.resolved.length > 0 && file === "all" && agent === "all" && category === "all" && !query ? (
+          {resolvedFindings.length > 0 &&
+          file === "all" &&
+          agent === "all" &&
+          category === "all" &&
+          !query ? (
             <section className="review-file resolved-file">
               <header>
                 <code>Resolved</code>
-                <span>{selected.delta.resolved.length}</span>
+                <span>{resolvedFindings.length}</span>
               </header>
               <ol>
-                {selected.delta.resolved.map((finding, i) => (
+                {resolvedFindings.map((finding, i) => (
                   <Comment
-                    key={`resolved-${finding.agent}-${i}`}
+                    key={`resolved-${finding.key ?? finding.agent}-${i}`}
                     finding={finding}
                     disposition="resolved"
                     pathLabel={commentPath(repo, finding)}
+                    waived={finding.waived}
                     onOpen={
                       onOpenFile && finding.file
                         ? () => onOpenFile(finding.file, finding.line)

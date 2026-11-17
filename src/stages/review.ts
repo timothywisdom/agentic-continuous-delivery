@@ -161,8 +161,21 @@ export async function executeReview(
     const priorReviewEvent = priorReviewEvents.at(-1);
 
     const cycle = priorReviewEvents.length + 1;
+    const mode = input.mode ?? "full";
+    if (mode === "delta" && priorReviewEvents.length === 0) {
+      throw new Error(
+        "acd review --mode delta requires a prior review for this work item. Run `acd review` (or `--mode full`) first.",
+      );
+    }
+    logProgress(`review: mode=${mode} (cycle ${cycle})`);
     const previousSha = priorSha(priorReviewEvents);
-    const diffRange = reviewDiff(ctx.repoRoot, ctx.state.baseSha, previousSha, cycle);
+    const diffRange = reviewDiff(
+      ctx.repoRoot,
+      ctx.state.baseSha,
+      previousSha,
+      mode,
+      cycle,
+    );
     const diffText = input.diff ?? diffRange.diff;
     const changed = input.diff ? parseChangedLines(input.diff) : diffRange.files;
     const previousFindings: ReviewFinding[] = Array.isArray(
@@ -207,9 +220,13 @@ export async function executeReview(
               })),
               waived: waivedForAgents,
               reviewCycle: cycle,
+              reviewMode: mode,
             },
             ctx.overrides,
             REVIEW_JSON_SHAPE +
+              (mode === "delta"
+                ? " This is a delta verification: focus on previousFindings and the diff; do not re-audit unchanged code."
+                : " This is a full review of the work item.") +
               " Do not re-raise findings listed in waived; the human already accepted them.",
           );
           const parsed = parseReviewAgent(json);
@@ -265,7 +282,7 @@ export async function executeReview(
     }
 
     const gated = applyCycleGate({
-      cycle,
+      mode,
       findings,
       previous: previousFindings,
       changed,
@@ -281,7 +298,7 @@ export async function executeReview(
     findings.push(...filtered.kept);
 
     const delta = computeReviewDelta(previousFindings, findings, cycle);
-    if (cycle > 1) {
+    if (mode === "delta" || cycle > 1) {
       logProgress(
         `review: cycle ${cycle} delta — ${delta.summary.resolvedCount} resolved, ` +
           `${delta.summary.persistentCount} persistent, ${delta.summary.newCount} new`,
@@ -332,6 +349,7 @@ export async function executeReview(
         findings,
         delta,
         reviewSha,
+        mode,
         budgetExceeded,
         waivedDropped: filtered.dropped.length,
       });
@@ -366,15 +384,19 @@ function reviewDiff(
   repoRoot: string,
   baseSha: string | null | undefined,
   previousSha: string | null,
+  mode: "full" | "delta",
   cycle: number,
 ): { diff: string; files: { path: string; lines: number[] }[] } {
-  const from = cycle <= 1 ? baseSha ?? null : previousSha ?? baseSha ?? null;
+  const useDeltaRange = mode === "delta" && previousSha;
+  const from = useDeltaRange ? previousSha : baseSha ?? null;
   const ranged = gitDiffRange(repoRoot, from);
   if (ranged.diff.trim()) {
-    logProgress(`review: cycle ${cycle} diff ${from ?? "working tree"}..worktree`);
+    logProgress(
+      `review: ${mode} diff ${from ?? "working tree"}..worktree (cycle ${cycle})`,
+    );
     return ranged;
   }
-  if (cycle > 1 && baseSha && from !== baseSha) {
+  if (useDeltaRange && baseSha && from !== baseSha) {
     const base = gitDiffRange(repoRoot, baseSha);
     if (base.diff.trim()) {
       logProgress(`review: no changes since ${from}; using base ${baseSha}`);
@@ -382,8 +404,10 @@ function reviewDiff(
     }
   }
   const fallback = gitDiff(repoRoot);
-  if (cycle > 1 && !fallback.trim()) {
-    logProgress("review: no diff since the last review; findings on unchanged lines are advisory");
+  if (mode === "delta" && !fallback.trim()) {
+    logProgress(
+      "review: no diff since the last review; findings on unchanged lines are advisory",
+    );
   }
   return { diff: fallback, files: parseChangedLines(fallback) };
 }
