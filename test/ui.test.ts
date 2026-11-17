@@ -91,6 +91,29 @@ describe("ui cli argv", () => {
     expect(() => buildAcDArgv({ command: "rm" })).toThrow(/not allowed/);
   });
 
+  it("allows waive with reason and explanation flags", () => {
+    expect(
+      buildAcDArgv({
+        command: "waive",
+        args: ["d7bf2bcc582b"],
+        flags: {
+          reason: "accepted-risk",
+          explanation: "Team of one",
+          "work-id": "w1",
+        },
+      }),
+    ).toEqual([
+      "waive",
+      "d7bf2bcc582b",
+      "--reason",
+      "accepted-risk",
+      "--explanation",
+      "Team of one",
+      "--work-id",
+      "w1",
+    ]);
+  });
+
   it("builds artifact-save argv without putting contents on the command line", () => {
     expect(
       buildAcDArgv({

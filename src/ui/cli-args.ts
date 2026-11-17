@@ -14,6 +14,7 @@ export const UI_ALLOWED_COMMANDS = [
   "reviews",
   "events",
   "revise",
+  "waive",
   "artifact-save",
   "intake",
   "specify",
