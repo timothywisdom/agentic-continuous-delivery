@@ -76,47 +76,48 @@ Examples use `npx acd-kit`. `help`, `--help`, and `-h` print the short usage tex
 
 These flags are optional on every command that loads project config (`config` through `hypothesis` below). `init`, `ui`, and `write-schemas` only honor the flags named in their rows.
 
-| Flag | Effect |
-| --- | --- |
-| `--repo-root <path>` | Repository to operate on. Default: the current directory. |
-| `--work-id <id>` | Work item under `.acd/work/`. Default: the latest one. `intake` always creates a new item. `list`, `test`, and `config` do not read it. |
-| `--harness <name>` | Harness for this run (`stub`, `cursor`, or `anthropic`). |
-| `--tier classify\|low\|med\|high` | Model tier for this run. |
-| `--approve-policy all\|none` | Human approval on (`all`) or off (`none`) for this run. |
-| `--require-approval` | Pause for a person where the stage supports it. |
-| `--no-require-approval` | Skip that pause for this run. |
+| Flag                              | Effect                                                                                                                                  |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--repo-root <path>`              | Repository to operate on. Default: the current directory.                                                                               |
+| `--work-id <id>`                  | Work item under `.acd/work/`. Default: the latest one. `intake` always creates a new item. `list`, `test`, and `config` do not read it. |
+| `--harness <name>`                | Harness for this run (`stub`, `cursor`, or `anthropic`).                                                                                |
+| `--tier classify\|low\|med\|high` | Model tier for this run.                                                                                                                |
+| `--approve-policy all\|none`      | Human approval on (`all`) or off (`none`) for this run.                                                                                 |
+| `--require-approval`              | Pause for a person where the stage supports it.                                                                                         |
+| `--no-require-approval`           | Skip that pause for this run.                                                                                                           |
 
-| Command | Description | Parameters | Example |
-| --- | --- | --- | --- |
-| `help` | Print usage. | None. Invoked as `help`, `--help`, or `-h`. | `npx acd-kit --help` |
-| `init` | Create `.acd/` in a project. | `dir` optional path. Default: `--repo-root` or the current directory. `--cursor` optional; also write the Cursor adapter at the repo root. `--github` optional; also write the GitHub Actions workflow. `--repo-root <path>` optional. | `npx acd-kit init --cursor` |
-| `ui` | Start the loopback console. Every button runs this same CLI. | `--port <n>` optional. Default: `4173`, or `ACD_UI_PORT`. `--repo-root <path>` optional. | `npx acd-kit ui --repo-root ~/source/calculator` |
-| `write-schemas` | Regenerate `acd/schemas` from the kit types. For kit development. | None. | `npx acd-kit write-schemas` |
-| `config` | Print the resolved harness, tier, model, and human-approval settings. | Shared flags. | `npx acd-kit config` |
-| `intake` | Create a work item from plain English. | `--from <text>` required. Shared flags. | `npx acd-kit intake --from "Build a calculator web app"` |
-| `specify` | Draft the spec. The classifier gates the validator. | `--artifact intent\|behavior\|feature\|acceptance\|all` optional. Default: `all`. Shared flags. | `npx acd-kit specify --artifact behavior` |
-| `implement` | Implement scenarios test-first. With no scenario, runs the review follow-up queue when one is set, otherwise the remaining scenarios. Stops if the pipeline is red. | `--scenario <id>` optional. The id is the heading label (`3` or `E10a`). That scenario always calls the agent. Shared flags. | `npx acd-kit implement --scenario E10a` |
-| `review` | Run mechanical hooks and the parallel review agents. A `block` decision exits 1. | Shared flags. | `npx acd-kit review` |
-| `revise` | Fold the latest blocking review into the spec and queue `implement`. Leaves the review unapproved. Refuses while the pipeline is red. | Shared flags. | `npx acd-kit revise` |
-| `pr` | Open a pull request whose body comes from the work-item artifacts. | Shared flags. | `npx acd-kit pr` |
-| `ci-review` | Review the work item and run tests. With no work items, runs tests only. `ci_review` is the same command. | Shared flags. | `npx acd-kit ci-review` |
-| `test` | Run the test command from config. A failure exits 1. | Shared flags. | `npx acd-kit test` |
-| `fix` | Repair a red pipeline. This is the only command that may change code while the pipeline is red. | Shared flags. | `npx acd-kit fix` |
-| `approve` | Accept a paused stage and record the approval. | `<stage>` required: `intake`, `specify`, `implement`, `review`, `pr`, `ci_review`, `fix`, `deploy`, `canary`, `rollback`, or `hypothesis`. Shared flags. | `npx acd-kit approve review` |
-| `reject` | Clear a pause and record why. Re-run the stage afterward. | `<stage>` required (same names as `approve`). `--reason <text>` optional. Default: `rejected`. Shared flags. | `npx acd-kit reject specify --reason "Split the spec"` |
-| `amend` | Keep the artifacts, save an optional guidance note, and clear the pause. | `<stage>` required (same names as `approve`). `--note <text>` optional. `--continue` optional; re-runs `specify` immediately. Other stages are re-run by hand. Shared flags. | `npx acd-kit amend specify --note "Keep the display to one line" --continue` |
-| `status` | Print work-item state and the latest event. | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags. | `npx acd-kit status` |
-| `list` | List work-item ids. | Shared flags. | `npx acd-kit list` |
-| `artifacts` | List the files in a work item. | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags. | `npx acd-kit artifacts` |
-| `reviews` | List review runs read from the event log, including findings. | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags. | `npx acd-kit reviews` |
-| `events` | Print `events.jsonl` in session order, one decision per event. | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags. | `npx acd-kit events` |
-| `artifact-save` | Write one file under the work item. | `<name>` required, such as `intent.md`. `state.json`, `events.jsonl`, and `telemetry.jsonl` are reserved. `--contents <text>` optional when the body is piped on stdin; one of the two is required. `--work-id <id>` optional, or pass the id as a second argument. Other shared flags. | `npx acd-kit artifact-save feature.md --contents "## Musts"` |
-| `deploy` | Named lifecycle step. v1 exits with an error; the stage is not implemented. | Shared flags are accepted. | `npx acd-kit deploy` |
-| `canary` | Named lifecycle step. v1 exits with an error; the stage is not implemented. | Shared flags are accepted. | `npx acd-kit canary` |
-| `rollback` | Named lifecycle step. v1 exits with an error; the stage is not implemented. | Shared flags are accepted. | `npx acd-kit rollback` |
-| `hypothesis` | Named lifecycle step. v1 exits with an error; the stage is not implemented. | Shared flags are accepted. | `npx acd-kit hypothesis` |
+| Command         | Description                                                                                                                                                         | Parameters                                                                                                                                                                                                                                                                              | Example                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `help`          | Print usage.                                                                                                                                                        | None. Invoked as `help`, `--help`, or `-h`.                                                                                                                                                                                                                                             | `npx acd-kit --help`                                                         |
+| `init`          | Create `.acd/` in a project.                                                                                                                                        | `dir` optional path. Default: `--repo-root` or the current directory. `--cursor` optional; also write the Cursor adapter at the repo root. `--github` optional; also write the GitHub Actions workflow. `--repo-root <path>` optional.                                                  | `npx acd-kit init --cursor`                                                  |
+| `ui`            | Start the loopback console. Every button runs this same CLI.                                                                                                        | `--port <n>` optional. Default: `4173`, or `ACD_UI_PORT`. `--repo-root <path>` optional.                                                                                                                                                                                                | `npx acd-kit ui --repo-root ~/source/calculator`                             |
+| `write-schemas` | Regenerate `acd/schemas` from the kit types. For kit development.                                                                                                   | None.                                                                                                                                                                                                                                                                                   | `npx acd-kit write-schemas`                                                  |
+| `config`        | Print the resolved harness, tier, model, and human-approval settings.                                                                                               | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit config`                                                         |
+| `intake`        | Create a work item from plain English.                                                                                                                              | `--from <text>` required. Shared flags.                                                                                                                                                                                                                                                 | `npx acd-kit intake --from "Build a calculator web app"`                     |
+| `specify`       | Draft the spec. The classifier gates the validator.                                                                                                                 | `--artifact intent\|behavior\|feature\|acceptance\|all` optional. Default: `all`. Shared flags.                                                                                                                                                                                         | `npx acd-kit specify --artifact behavior`                                    |
+| `implement`     | Implement scenarios test-first. With no scenario, runs the review follow-up queue when one is set, otherwise the remaining scenarios. Stops if the pipeline is red. | `--scenario <id>` optional. The id is the heading label (`3` or `E10a`). That scenario always calls the agent. Shared flags.                                                                                                                                                            | `npx acd-kit implement --scenario E10a`                                      |
+| `review`        | Run mechanical hooks and the parallel review agents. A `block` decision exits 1.                                                                                    | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit review`                                                         |
+| `revise`        | Fold the latest blocking review into the spec and queue `implement`. Leaves the review unapproved. Refuses while the pipeline is red.                               | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit revise`                                                         |
+| `pr`            | Open a pull request whose body comes from the work-item artifacts.                                                                                                  | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit pr`                                                             |
+| `ci-review`     | Review the work item and run tests. With no work items, runs tests only. `ci_review` is the same command.                                                           | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit ci-review`                                                      |
+| `test`          | Run the test command from config. A failure exits 1.                                                                                                                | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit test`                                                           |
+| `fix`           | Repair a red pipeline. This is the only command that may change code while the pipeline is red.                                                                     | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit fix`                                                            |
+| `approve`       | Accept a paused stage and record the approval.                                                                                                                      | `<stage>` required: `intake`, `specify`, `implement`, `review`, `pr`, `ci_review`, `fix`, `deploy`, `canary`, `rollback`, or `hypothesis`. Shared flags.                                                                                                                                | `npx acd-kit approve review`                                                 |
+| `reject`        | Clear a pause and record why. Re-run the stage afterward.                                                                                                           | `<stage>` required (same names as `approve`). `--reason <text>` optional. Default: `rejected`. Shared flags.                                                                                                                                                                            | `npx acd-kit reject specify --reason "Split the spec"`                       |
+| `amend`         | Keep the artifacts, save an optional guidance note, and clear the pause.                                                                                            | `<stage>` required (same names as `approve`). `--note <text>` optional. `--continue` optional; re-runs `specify` immediately. Other stages are re-run by hand. Shared flags.                                                                                                            | `npx acd-kit amend specify --note "Keep the display to one line" --continue` |
+| `status`        | Print work-item state and the latest event.                                                                                                                         | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags.                                                                                                                                                                                           | `npx acd-kit status`                                                         |
+| `list`          | List work-item ids.                                                                                                                                                 | Shared flags.                                                                                                                                                                                                                                                                           | `npx acd-kit list`                                                           |
+| `artifacts`     | List the files in a work item.                                                                                                                                      | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags.                                                                                                                                                                                           | `npx acd-kit artifacts`                                                      |
+| `reviews`       | List review runs read from the event log, including findings and waivers.                                                                                           | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags.                                                                                                                                                                                           | `npx acd-kit reviews`                                                        |
+| `waive`         | Record a human waiver for one or more review finding keys (human-only).                                                                                             | `<findingKey…>` required (from `reviews`). `--reason` required: `false-positive`, `accepted-risk`, `out-of-scope`, `mitigated`, or `duplicate`. `--explanation <text>` optional. Shared flags.                                                                                          | `npx acd-kit waive <key> --reason accepted-risk`                             |
+| `events`        | Print `events.jsonl` in session order, one decision per event.                                                                                                      | `[work-id]` optional positional, or `--work-id`. Default: the latest work item. Shared flags.                                                                                                                                                                                           | `npx acd-kit events`                                                         |
+| `artifact-save` | Write one file under the work item.                                                                                                                                 | `<name>` required, such as `intent.md`. `state.json`, `events.jsonl`, and `telemetry.jsonl` are reserved. `--contents <text>` optional when the body is piped on stdin; one of the two is required. `--work-id <id>` optional, or pass the id as a second argument. Other shared flags. | `npx acd-kit artifact-save feature.md --contents "## Musts"`                 |
+| `deploy`        | Named lifecycle step. v1 exits with an error; the stage is not implemented.                                                                                         | Shared flags are accepted.                                                                                                                                                                                                                                                              | `npx acd-kit deploy`                                                         |
+| `canary`        | Named lifecycle step. v1 exits with an error; the stage is not implemented.                                                                                         | Shared flags are accepted.                                                                                                                                                                                                                                                              | `npx acd-kit canary`                                                         |
+| `rollback`      | Named lifecycle step. v1 exits with an error; the stage is not implemented.                                                                                         | Shared flags are accepted.                                                                                                                                                                                                                                                              | `npx acd-kit rollback`                                                       |
+| `hypothesis`    | Named lifecycle step. v1 exits with an error; the stage is not implemented.                                                                                         | Shared flags are accepted.                                                                                                                                                                                                                                                              | `npx acd-kit hypothesis`                                                     |
 
-The UI listens on [http://127.0.0.1:4173](http://127.0.0.1:4173) (loopback only) and drives this CLI.
+The UI listens on [http://127.0.0.1:4173](http://127.0.0.1:4173) (loopback only) and drives this CLI. Review **Open** and artifact links call the UI server; the server runs your configured editor command on the machine that hosts `acd ui`.
 
 ## Configuration
 
@@ -126,6 +127,41 @@ Later layers win:
 2. `.acd/acd.config.yaml`
 3. `.acd/acd.config.local.yaml`
 4. `.acd/.env.local`
+
+### UI “Open” editor
+
+Tell the UI which editor to launch when you click **Open** on a review finding or artifact. Resolution order:
+
+1. `repo.openCommand` in config
+2. `ACD_EDITOR` in the environment of the `acd ui` process
+3. Auto-detect `cursor`, then `code`, on `PATH`
+
+Bare `$EDITOR` is ignored (it is often `vi` / `vim`, which hang without a TTY).
+
+In `.acd/acd.config.yaml` or `.acd/acd.config.local.yaml`:
+
+```yaml
+repo:
+  openCommand: cursor -g {location}
+```
+
+Tokens: `{file}` (absolute path), `{line}` (number), `{location}` (`file` or `file:line`).
+
+Examples:
+
+```yaml
+openCommand: code -g {location}
+openCommand: nvim +{line} {file}
+```
+
+Or export before starting the UI:
+
+```bash
+export ACD_EDITOR='cursor -g {location}'
+npx acd-kit ui
+```
+
+Restart `acd ui` after changing config or env so the Next server picks it up.
 
 ## OpenTelemetry
 
