@@ -103,6 +103,25 @@ export function buildAcDArgv(req: UiRunRequest): string[] {
   return argv;
 }
 
+/** Human-facing `acd …` line for the Drive CLI / waive previews. */
+export function formatAcDCliPreview(
+  req: UiRunRequest,
+  bin: string = "acd",
+): string {
+  return formatArgvPreview(buildAcDArgv(req), bin);
+}
+
+/** Quote argv tokens the way a shell would need them (for logs / copy-paste). */
+export function formatArgvPreview(argv: string[], bin: string = "acd"): string {
+  return [bin, ...argv.map(shellQuoteArg)].join(" ");
+}
+
+export function shellQuoteArg(token: string): string {
+  if (token === "") return '""';
+  if (/^[a-zA-Z0-9_@./:=+-]+$/.test(token)) return token;
+  return JSON.stringify(token);
+}
+
 export function stageGraphNodes(): {
   id: string;
   kind: "pipeline" | "fix" | "stub";

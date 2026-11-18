@@ -224,6 +224,62 @@ button {
   font-size: 12px;
 }
 
+.graph-status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 4px 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+
+.graph-status-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.graph-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.graph-guidance-note {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "IBM Plex Mono", "ui-monospace", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.graph-status-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.graph-status-hint code {
+  font-size: 11px;
+  color: var(--text);
+}
+
 @keyframes suggest-pulse {
   0%,
   100% {
@@ -431,6 +487,61 @@ button {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+}
+
+.drive-panel input[type="checkbox"] {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.drive-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.drive-check span {
+  color: var(--muted);
+  user-select: none;
+}
+
+.cli-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 88%, var(--bg-elev));
+}
+
+.cli-preview-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cli-preview-cmd {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", "ui-monospace", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  cursor: default;
 }
 
 .log-panel {
@@ -1028,18 +1139,8 @@ textarea {
   width: 100%;
 }
 
-.waive-preview {
+.waive-form .cli-preview {
   margin: 0;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--muted);
-  font-family: "IBM Plex Mono", "ui-monospace", monospace;
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .review-issue {

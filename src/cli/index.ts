@@ -416,9 +416,19 @@ async function dispatchCommand(
         if (result.awaitingGuidance) process.exitCode = 2;
         return;
       }
-      throw new Error(
-        `acd amend --continue is implemented for specify in v1; re-run \`acd ${stage}\` manually.`,
+      // Amend already saved; --continue for other stages is not wired yet.
+      noteValue(`amended ${stage}`, state, span);
+      printJson(state);
+      process.stderr.write(
+        `acd: amended '${stage}'` +
+          (note ? ` (guidance note saved)` : "") +
+          `. --continue is only implemented for specify in v1; next: npx acd ${
+            stage === "review" && (state.implementQueue?.length ?? 0) > 0
+              ? "implement"
+              : stage
+          }\n`,
       );
+      return;
     }
     noteValue(`amended ${stage}`, state, span);
     printJson(state);

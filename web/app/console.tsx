@@ -7,6 +7,7 @@ import {
   suggestNextCommand,
   type ReviseTransfer,
 } from "../../dist/ui/next-command.js";
+import { formatAcDCliPreview } from "../../dist/ui/cli-args.js";
 import { ArtifactPane, type Artifact } from "./artifact-pane";
 import { CycleGraph } from "./cycle-graph";
 import { EventPane, type SessionEvent } from "./event-pane";
@@ -82,7 +83,7 @@ export function Console() {
   const [stageArg, setStageArg] = useState("specify");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
-  const [continueAmend, setContinueAmend] = useState(true);
+  const [continueAmend, setContinueAmend] = useState(false);
   const [harness, setHarness] = useState("");
   const [tier, setTier] = useState("");
   const [logs, setLogs] = useState<LogLine[]>([]);
@@ -273,6 +274,40 @@ export function Console() {
 
   const suggestion = useMemo(() => suggestNextCommand(state), [state]);
 
+  const cliPreview = useMemo(
+    () =>
+      formatAcDCliPreview(
+        buildBody({
+          command,
+          workId,
+          fromText,
+          artifact,
+          scenario,
+          reviewMode,
+          stageArg,
+          reason,
+          note,
+          continueAmend,
+          harness,
+          tier,
+        }),
+      ),
+    [
+      command,
+      workId,
+      fromText,
+      artifact,
+      scenario,
+      reviewMode,
+      stageArg,
+      reason,
+      note,
+      continueAmend,
+      harness,
+      tier,
+    ],
+  );
+
   if (bootError) {
     return (
       <div className="shell">
@@ -345,6 +380,55 @@ export function Console() {
             {suggestion.detail}
           </p>
         </div>
+        {state &&
+        (state.awaitingGuidance ||
+          state.awaitingApproval ||
+          (state.implementQueue?.length ?? 0) > 0) ? (
+          <div className="graph-status" aria-live="polite">
+            {state.awaitingGuidance && state.guidanceNote ? (
+              <div className="graph-guidance">
+                <div className="graph-status-label">
+                  Needs guidance · {state.awaitingGuidance}
+                </div>
+                <pre className="graph-guidance-note">{state.guidanceNote}</pre>
+                <p className="graph-status-hint">
+                  Answer with <code>acd amend {state.awaitingGuidance} --note "…"</code>
+                  {" "}(Drive CLI → amend). Your note is the decision; this box is the question.
+                </p>
+              </div>
+            ) : state.awaitingGuidance ? (
+              <div className="graph-status-line">
+                <span className="graph-status-label">
+                  Needs guidance · {state.awaitingGuidance}
+                </span>
+                <span>No guidance note on file — amend with a note to continue.</span>
+              </div>
+            ) : null}
+            {state.awaitingApproval ? (
+              <div className="graph-status-line">
+                <span className="graph-status-label">
+                  Awaiting approval · {state.awaitingApproval}
+                </span>
+                <span>
+                  Approve, reject, or amend that stage before the pipeline moves on.
+                </span>
+              </div>
+            ) : null}
+            {(state.implementQueue?.length ?? 0) > 0 ? (
+              <div className="graph-status-line">
+                <span className="graph-status-label">
+                  Implement queue · {state.implementQueue!.length} job
+                  {state.implementQueue!.length === 1 ? "" : "s"}
+                </span>
+                <span>
+                  {state.awaitingGuidance
+                    ? "Queued after you clear guidance (amend), then run implement."
+                    : "Run implement to work the queued scenarios/fixes."}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="legend">
           <span className="l-done">completed</span>
           <span className="l-now">current</span>
@@ -451,16 +535,33 @@ export function Console() {
               <>
                 <label>
                   --note (human guidance)
-                  <textarea value={note} onChange={(e) => setNote(e.target.value)} />
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder={
+                      state?.awaitingGuidance && state.guidanceNote
+                        ? "Your decision / answer to the guidance note above"
+                        : "Optional guidance for the next run"
+                    }
+                  />
                 </label>
-                <label>
+                <label
+                  className="drive-check"
+                  title={
+                    stageArg === "specify"
+                      ? "Re-run specify immediately after saving the note"
+                      : "Only available for specify in v1"
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    checked={continueAmend && stageArg === "specify"}
+                    disabled={stageArg !== "specify"}
+                    onChange={(e) => setContinueAmend(e.target.checked)}
+                  />
                   <span>
-                    <input
-                      type="checkbox"
-                      checked={continueAmend}
-                      onChange={(e) => setContinueAmend(e.target.checked)}
-                    />{" "}
                     --continue
+                    {stageArg !== "specify" ? " (specify only)" : ""}
                   </span>
                 </label>
               </>
@@ -482,6 +583,10 @@ export function Console() {
                   placeholder="optional"
                 />
               </label>
+            </div>
+            <div className="cli-preview" aria-live="polite">
+              <div className="cli-preview-label">CLI command</div>
+              <pre className="cli-preview-cmd">{cliPreview}</pre>
             </div>
             <div className="actions">
               <button type="button" className="run-btn" disabled={running} onClick={runSelected}>
@@ -689,7 +794,8 @@ function buildBody(opts: {
   if (opts.command === "reject") flags.reason = opts.reason || "rejected";
   if (opts.command === "amend") {
     if (opts.note) flags.note = opts.note;
-    if (opts.continueAmend) flags.continue = true;
+    // --continue only re-runs specify in v1; never send it for other stages.
+    if (opts.continueAmend && opts.stageArg === "specify") flags.continue = true;
   }
   if (opts.command === "status" && opts.workId) args.push(opts.workId);
   if (opts.command === "artifacts" && opts.workId) args.push(opts.workId);

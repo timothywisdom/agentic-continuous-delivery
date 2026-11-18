@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { formatArgvPreview } from "../../dist/ui/cli-args.js";
 import { kitRoot, repoRoot } from "./session";
 
 export type LogChunk = {
@@ -67,7 +68,7 @@ export function startCliJob(argv: string[], stdin?: string): JobRecord {
   emit(job, {
     t: new Date().toISOString(),
     stream: "system",
-    text: `$ acd ${args.join(" ")}\n`,
+    text: `$ ${formatArgvPreview(args)}\n`,
   });
 
   const child = spawn(process.execPath, [bin, ...args], {

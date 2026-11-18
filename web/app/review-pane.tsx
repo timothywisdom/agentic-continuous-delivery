@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReviewRun } from "../../dist/work/reviews.js";
 import type { WaivedFinding, WaiveReason } from "../../dist/types/work.js";
 import { WAIVE_REASONS } from "../../dist/types/work.js";
+import { formatAcDCliPreview } from "../../dist/ui/cli-args.js";
 import {
   openReviewFindings,
   resolvedReviewFindings,
@@ -370,15 +371,15 @@ function WaiveOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, onCancel]);
 
-  const preview = [
-    "acd waive",
-    key,
-    `--reason ${reason}`,
-    explanation.trim() ? `--explanation ${JSON.stringify(explanation.trim())}` : null,
-    workId ? `--work-id ${workId}` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const preview = formatAcDCliPreview({
+    command: "waive",
+    args: [key],
+    flags: {
+      reason,
+      ...(explanation.trim() ? { explanation: explanation.trim() } : {}),
+      ...(workId ? { "work-id": workId } : {}),
+    },
+  });
 
   return (
     <div
@@ -451,7 +452,10 @@ function WaiveOverlay({
           </label>
         ) : null}
 
-        <pre className="waive-preview">{preview}</pre>
+        <div className="cli-preview" aria-live="polite">
+          <div className="cli-preview-label">CLI command</div>
+          <pre className="cli-preview-cmd">{preview}</pre>
+        </div>
 
         {error ? <div className="error-line">{error}</div> : null}
 

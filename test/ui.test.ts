@@ -2,7 +2,12 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildAcDArgv, graphNodeEmphasis } from "../src/ui/cli-args.js";
+import {
+  buildAcDArgv,
+  formatAcDCliPreview,
+  formatArgvPreview,
+  graphNodeEmphasis,
+} from "../src/ui/cli-args.js";
 import {
   artifactKind,
   editorFileHref,
@@ -85,6 +90,37 @@ describe("ui cli argv", () => {
         flags: { artifact: "all", "work-id": "w1" },
       }),
     ).toEqual(["specify", "--artifact", "all", "--work-id", "w1"]);
+  });
+
+  it("formats a pasteable CLI preview with quoted values", () => {
+    expect(
+      formatAcDCliPreview({
+        command: "amend",
+        args: ["review"],
+        flags: {
+          note: "Remove logging; display-only",
+          continue: true,
+          "work-id": "w1",
+        },
+      }),
+    ).toBe(
+      'acd amend review --note "Remove logging; display-only" --continue --work-id w1',
+    );
+  });
+
+  it("quotes argv tokens that contain spaces or shell metacharacters", () => {
+    expect(
+      formatArgvPreview([
+        "amend",
+        "review",
+        "--note",
+        "Remove recordOperationalEvent / console.info; keep display-only errors.",
+        "--work-id",
+        "w1",
+      ]),
+    ).toBe(
+      'acd amend review --note "Remove recordOperationalEvent / console.info; keep display-only errors." --work-id w1',
+    );
   });
 
   it("rejects unknown commands", () => {
